@@ -15,10 +15,18 @@ namespace WorldMill
         public WorldMillStreamer streamer;
         public float waterLevel = -6.0f;
 
+        [Header("Sculpted 3D Asset Overrides (Optional — auto-populated from KayKit)")]
+        public Mesh sculptedTreeMeshA;
+        public Mesh sculptedTreeMeshB;
+        public Mesh sculptedRockMesh;
+        public Material sculptedNatureMaterial;
+        public float sculptedTreeScale = 3.8f;
+        public float sculptedRockScale = 2.4f;
+
         [Header("Forest & Meadow Density")]
-        [Range(0, 40)] public int maxTreesPerChunk = 14;
-        [Range(3f, 14f)] public float minTreeSpacing = 6.8f;
-        [Range(0.2f, 0.85f)] public float forestThreshold = 0.55f;
+        [Range(0, 40)] public int maxTreesPerChunk = 12;
+        [Range(3f, 14f)] public float minTreeSpacing = 7.2f;
+        [Range(0.2f, 0.85f)] public float forestThreshold = 0.54f;
         [Range(0, 200)] public int maxGrassPerChunk = 110;
 
         public int TotalTrees => _allTrunks.Count;
@@ -122,8 +130,9 @@ namespace WorldMill
                 float r1 = ((h >> 16) & 0xFFFFu) / 65535f;
                 float yaw = r1 * 360f;
 
-                // 1. Scenic spaced Nordic Pine groves + wide open sunlit meadows
-                if (p.y > waterLevel + 2.0f && p.y < 28f && n.y > 0.78f && c.r > 0.52f)
+                // 1. Scenic spaced Nordic Pine groves + wide open sunlit meadows (keep starting Hamlet square clear!)
+                float distToHamlet = Vector2.Distance(new Vector2(p.x, p.z), new Vector2(12f, -34f));
+                if (distToHamlet > 18f && p.y > waterLevel + 2.0f && p.y < 28f && n.y > 0.78f && c.r > 0.52f)
                 {
                     // Coherent grove mask: open meadows + natural forest pockets
                     float grove = Mathf.PerlinNoise(p.x * 0.022f + seed * 0.13f, p.z * 0.022f + seed * 0.27f);
@@ -142,12 +151,22 @@ namespace WorldMill
                         if (!tooClose)
                         {
                             placedTreePositions.Add(p);
-                            float s = Mathf.Lerp(0.85f, 1.55f, r1);
-                            float hScale = s * Mathf.Lerp(0.95f, 1.30f, ((h >> 8) & 0xFFu) / 255f);
-                            var tilt = Quaternion.Euler((r0 - 0.015f) * 28f, yaw, (r1 - 0.5f) * 4f);
+                            bool useSculpted = sculptedTreeMeshA != null && sculptedNatureMaterial != null;
+                            float baseScale = useSculpted ? sculptedTreeScale : 1.0f;
+                            float s = Mathf.Lerp(0.82f, 1.45f, r1) * baseScale;
+                            float hScale = s * Mathf.Lerp(0.92f, 1.25f, ((h >> 8) & 0xFFu) / 255f);
+                            var tilt = Quaternion.Euler((r0 - 0.015f) * 24f, yaw, (r1 - 0.5f) * 4f);
                             var mat = Matrix4x4.TRS(p - new Vector3(0f, 0.25f, 0f), tilt, new Vector3(s, hScale, s));
-                            inst.Trunks.Add(mat);
-                            inst.Canopies.Add(mat);
+                            if (useSculpted)
+                            {
+                                if ((h & 1u) == 0u || sculptedTreeMeshB == null) inst.Trunks.Add(mat);
+                                else inst.Canopies.Add(mat);
+                            }
+                            else
+                            {
+                                inst.Trunks.Add(mat);
+                                inst.Canopies.Add(mat);
+                            }
                             continue;
                         }
                     }
@@ -163,11 +182,12 @@ namespace WorldMill
                 // 2. Mossy boulders on rocky slopes & riverbanks
                 else if (p.y > waterLevel - 0.5f && n.y > 0.52f && (c.g > 0.35f || c.r < 0.25f))
                 {
-                    if (r0 < 0.022f && inst.Boulders.Count < 28)
+                    if (r0 < 0.022f && inst.Boulders.Count < 24)
                     {
-                        float bs = Mathf.Lerp(0.45f, 1.55f, r1);
-                        var rot = Quaternion.Euler(r0 * 180f, yaw, r1 * 120f);
-                        inst.Boulders.Add(Matrix4x4.TRS(p - new Vector3(0f, bs * 0.25f, 0f), rot, new Vector3(bs * 1.25f, bs * 0.8f, bs)));
+                        float rockBase = (sculptedRockMesh != null && sculptedNatureMaterial != null) ? sculptedRockScale : 1.0f;
+                        float bs = Mathf.Lerp(0.50f, 1.45f, r1) * rockBase;
+                        var rot = Quaternion.Euler(0f, yaw, 0f);
+                        inst.Boulders.Add(Matrix4x4.TRS(p - new Vector3(0f, bs * 0.14f, 0f), rot, new Vector3(bs, bs * 0.9f, bs)));
                     }
                 }
                 // 3. Bioluminescent Crystal Spires inside deep subterranean caverns!
@@ -207,9 +227,22 @@ namespace WorldMill
                 _dirty = false;
             }
 
-            DrawInstanced(_trunkMesh, _trunkMat, _allTrunks, ShadowCastingMode.On);
-            DrawInstanced(_canopyMesh, _canopyMat, _allCanopies, ShadowCastingMode.On);
-            DrawInstanced(_boulderMesh, _boulderMat, _allBoulders, ShadowCastingMode.On);
+            if (sculptedTreeMeshA != null && sculptedNatureMaterial != null)
+            {
+                DrawInstanced(sculptedTreeMeshA, sculptedNatureMaterial, _allTrunks, ShadowCastingMode.On);
+                DrawInstanced(sculptedTreeMeshB ?? sculptedTreeMeshA, sculptedNatureMaterial, _allCanopies, ShadowCastingMode.On);
+            }
+            else
+            {
+                DrawInstanced(_trunkMesh, _trunkMat, _allTrunks, ShadowCastingMode.On);
+                DrawInstanced(_canopyMesh, _canopyMat, _allCanopies, ShadowCastingMode.On);
+            }
+
+            if (sculptedRockMesh != null && sculptedNatureMaterial != null)
+                DrawInstanced(sculptedRockMesh, sculptedNatureMaterial, _allBoulders, ShadowCastingMode.On);
+            else
+                DrawInstanced(_boulderMesh, _boulderMat, _allBoulders, ShadowCastingMode.On);
+
             DrawInstanced(_crystalMesh, _crystalMat, _allCrystals, ShadowCastingMode.Off);
             DrawInstanced(_grassMesh, _grassMat, _allGrass, ShadowCastingMode.Off);
         }

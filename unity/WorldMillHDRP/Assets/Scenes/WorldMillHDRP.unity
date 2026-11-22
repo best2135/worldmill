@@ -201,6 +201,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldMill.WorldMillFoliageSystem
   streamer: {fileID: 357802575}
   waterLevel: -6
+  sculptedTreeMeshA: {fileID: -3189140834629115801, guid: 76aa11b724eca0c4c937afc1bd03e576, type: 3}
+  sculptedTreeMeshB: {fileID: 2795065170541143438, guid: 5cceae19468588b8a9cb1244da48f62d, type: 3}
+  sculptedRockMesh: {fileID: -3640708041525635837, guid: 424de76319e463c41b09683e480f7bba, type: 3}
+  sculptedNatureMaterial: {fileID: 2100000, guid: 0f0b9fd4915485390b3ea55e48743454, type: 2}
+  sculptedTreeScale: 6.2685513
+  sculptedRockScale: 23.087673
   maxTreesPerChunk: 14
   minTreeSpacing: 6.8
   forestThreshold: 0.55
@@ -766,6 +772,72 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1889611269
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1889611271}
+  - component: {fileID: 1889611270}
+  m_Layer: 0
+  m_Name: WorldMill WorldBuilder (POIs & NPCs)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1889611270
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1889611269}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 91ea360034d1d12e2ba215c0ad6d4d96, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorldMill.WorldMillWorldBuilder
+  tavernPrefab: {fileID: 7691176823905036914, guid: b8aef338bbfedea8593cb17a6e47c8f3, type: 3}
+  blacksmithPrefab: {fileID: 3353811888579528046, guid: ce8e3c804a25b101f8bb5ce8a0978252, type: 3}
+  homeAPrefab: {fileID: 6036277397387365140, guid: 07c89636dfed5cfb58b98fd415139637, type: 3}
+  homeBPrefab: {fileID: 142053946936567653, guid: 2387aabd7cb56f3a9896519acce3e3cf, type: 3}
+  towerPrefab: {fileID: 7342699634281908812, guid: 0334839518e51f88280f02e687d3ff70, type: 3}
+  windmillPrefab: {fileID: 5330552912186965300, guid: da1084ac68634cb3fa7231b1fee01c4e, type: 3}
+  wellPrefab: {fileID: 3871148867205712584, guid: 07c8208eb6f1f74eea34ebb06130091b, type: 3}
+  marketPrefab: {fileID: 5175002899793384230, guid: acc174a43a59ec3f4b6b8da2052097f2, type: 3}
+  bridgePrefab: {fileID: 5616379847004955968, guid: c08c1b963eb66c5899a3740e938db729, type: 3}
+  pillarPrefab: {fileID: 2733059338072535065, guid: bf7eae6c875126e5a932f763347f5415, type: 3}
+  archPrefab: {fileID: 8081806745531148409, guid: a9c5666c4cab94353aa407716ed0c793, type: 3}
+  rubblePrefab: {fileID: 1033589014832577811, guid: 995abe0edc156bb9db69357d5748e023, type: 3}
+  torchPrefab: {fileID: 4149962456039640263, guid: 580150dd6120be281b4d8a9973b2aed0, type: 3}
+  chestPrefab: {fileID: 8326114922228801872, guid: 9533e3b29764224d9aa07a15e6dbcdc8, type: 3}
+  barrelPrefab: {fileID: 5562114419604793513, guid: d77df11c0d9a63adb85a76d5371048f5, type: 3}
+  cratesPrefab: {fileID: 3828663881963005351, guid: acc7d753d949cf4f7b4d42e79d3ff23f, type: 3}
+  barbarianNpcPrefab: {fileID: 6364575472820991184, guid: fbed979a70b0823ccbbce75356325601, type: 3}
+  rogueNpcPrefab: {fileID: 100663122268260082, guid: 8fda5b07cc5b83d0d93d76a0daa0e4c1, type: 3}
+  mageNpcPrefab: {fileID: 3140393370411741130, guid: d531153c8258ba7feadca6cdf10e6c40, type: 3}
+  streamer: {fileID: 357802575}
+  rpgClient: {fileID: 1592637286}
+  playerTransform: {fileID: 2109854199}
+--- !u!4 &1889611271
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1889611269}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1924596644
 GameObject:
   m_ObjectHideFlags: 0
@@ -1032,7 +1104,7 @@ Transform:
   m_GameObject: {fileID: 2109854198}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 12, y: 26, z: -38}
+  m_LocalPosition: {x: 12, y: 22, z: -46}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1080,3 +1152,4 @@ SceneRoots:
   - {fileID: 736617818}
   - {fileID: 2109854199}
   - {fileID: 1592637287}
+  - {fileID: 1889611271}
