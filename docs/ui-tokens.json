@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "name": "WorldMill HUD — design tokens",
+    "version": "2.0.0",
+    "pass": "Restraint pass: ink on dark glass, mostly empty screen",
+    "referenceResolution": [1920, 1080],
+    "scaling": "px are authored at 1080p. Unity multiplies by max(0.6, Screen.height / 1080); hairlines stay max(1, round(scale)) px.",
+    "colorSpace": "Hex is sRGB. Unity Color floats are sRGB (hex / 255): assign as-is in a linear HDRP project, never pre-linearize.",
+    "implementation": "unity/WorldMillHDRP/Assets/WorldMill/Scripts/UI/WorldMillMinimalHud.cs",
+    "reference": "docs/ui-design-system.html"
+  },
+  "color": {
+    "ink":            { "hex": "#e8e2d4", "unity": "new Color(0.910f, 0.886f, 0.831f, 1f)", "usage": "All text and hairlines, at the opacities below" },
+    "gold":           { "hex": "#d4a853", "unity": "new Color(0.831f, 0.659f, 0.325f, 1f)", "usage": "Attention targets only: quest diamond, active hotbar slot, boss phase notch" },
+    "hp":             { "hex": "#9b2e2a", "unity": "new Color(0.608f, 0.180f, 0.165f, 1f)", "usage": "Health fill" },
+    "hpTrail":        { "hex": "#e8e2d4", "alpha": 0.50, "unity": "new Color(0.910f, 0.886f, 0.831f, 0.50f)", "usage": "Damage trail behind the health fill" },
+    "stamina":        { "hex": "#3f7659", "unity": "new Color(0.247f, 0.463f, 0.349f, 1f)", "usage": "Stamina fill (muted pine)" },
+    "staminaTrail":   { "hex": "#e8e2d4", "alpha": 0.32, "unity": "new Color(0.910f, 0.886f, 0.831f, 0.32f)", "usage": "Stamina drain trail" },
+    "xp":             { "hex": "#d4a853", "alpha": 0.72, "unity": "new Color(0.831f, 0.659f, 0.325f, 0.72f)", "usage": "2px XP hairline; the one passive use of gold, kept dim" },
+    "surface":        { "hex": "#0c0e12", "unity": "new Color(0.047f, 0.055f, 0.071f, 1f)", "usage": "Bar tracks (55%), prompt (58%), journal sheet (90%)" },
+    "scrim":          { "hex": "#06070a", "alpha": 0.62, "unity": "new Color(0.024f, 0.027f, 0.035f, 0.62f)", "usage": "Full-screen dim behind the journal" },
+    "barBorder":      { "hex": "#000000", "alpha": 0.78, "unity": "new Color(0f, 0f, 0f, 0.78f)", "usage": "1px dark border around HP and stamina" },
+    "textShadow":     { "hex": "#000000", "alpha": "0.45–0.85", "unity": "Mathf.Lerp(0.45f, 0.85f, Mathf.InverseLerp(-6f, 55f, SunElevationDeg))", "usage": "1px offset shadow; firmer when the sun is high and the sky bright" }
+  },
+  "inkOpacity": {
+    "strong": 0.94,
+    "muted": 0.72,
+    "faint": 0.48,
+    "hairline": 0.16,
+    "hairlineStrong": 0.32
+  },
+  "type": {
+    "families": {
+      "serif": ["EB Garamond", "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", "Georgia", "Noto Serif", "DejaVu Serif"],
+      "sans": ["Inter", "Segoe UI", "Helvetica Neue", "SF Pro Text", "Noto Sans", "DejaVu Sans", "Arial"],
+      "unityNote": "Font.CreateDynamicFontFromOSFont with the first installed name; falls back to GUI.skin.font."
+    },
+    "scale": {
+      "journalTitle":  { "family": "serif", "size": 26, "usage": "\"Journal\" heading" },
+      "detailTitle":   { "family": "serif", "size": 24, "usage": "Selected quest, lore entry or item" },
+      "trackerTitle":  { "family": "serif", "size": 18, "usage": "Top-right quest title" },
+      "rowTitle":      { "family": "serif", "size": 16, "usage": "Journal list rows" },
+      "loreTitle":     { "family": "serif", "size": 15, "usage": "Chronicle entry titles" },
+      "body":          { "family": "sans",  "size": 14, "usage": "Descriptions, toast, prompt" },
+      "secondary":     { "family": "sans",  "size": 13, "usage": "Objective line, tabs, objectives" },
+      "meta":          { "family": "sans",  "size": 12, "usage": "Lv., weapon, givers, footers, cardinals" },
+      "micro":         { "family": "sans",  "size": 11, "usage": "Compass distance" }
+    },
+    "case": "Sentence case for all UI text. Title case only for place names (Oakhaven Crossing) and boss names; quest, item and lore titles keep the casing the store gives them. No uppercase tracking, no emoji."
+  },
+  "hud": {
+    "compass":  { "anchor": "top-center", "width": 560, "y": 44, "fovDeg": 180, "tickEveryDeg": 15, "cardinalTick": 6, "minorTick": 3, "diamond": 11, "lineInkOpacity": 0.34, "offscreenDiamondOpacity": 0.55 },
+    "toast":    { "anchor": "top-center", "y": 84, "sideRule": 28, "sideGap": 14 },
+    "tracker":  { "anchor": "top-right", "right": 44, "top": 32, "diamond": 7, "objectiveMaxWidth": 420, "lines": 2 },
+    "vitals":   { "anchor": "bottom-left", "left": 44, "bottom": 40, "hpHeight": 7, "staminaHeight": 5, "xpHeight": 2, "gapHpStamina": 5, "gapStaminaXp": 6, "gapXpText": 9,
+                  "hpWidth": "280 + 1.2 × (MaxHp − 100), clamped 180–460", "staminaWidth": "220 + 1.2 × (MaxStamina − 100), clamped 140–380" },
+    "prompt":   { "anchor": "bottom-center", "bottom": 150, "keyCap": 22, "padX": 14, "padY": 9, "gap": 12, "frameInkOpacity": 0.24 },
+    "journal":  { "maxWidth": 1040, "maxHeight": 640, "screenMargin": 48, "padding": 40, "leftColumn": 300, "columnGap": 40, "rowHeight": 58, "detailMaxWidth": 580, "tabs": ["Quests", "Chronicle", "Inventory"] },
+    "hotbar":   { "status": "design only", "anchor": "bottom-center", "slot": 44, "gap": 6, "bottom": 40, "activeBorder": "gold" },
+    "bossBar":  { "status": "design only", "anchor": "bottom-center", "width": 640, "height": 5, "bottom": 156, "phaseNotch": "gold, 1px × 9px" }
+  },
+  "motion": {
+    "trailDelayMs": 450,
+    "trailDrain": "max(gap × 3.5, 0.18) per second after the delay; continuous drains under 1.5% per frame do not reset the delay",
+    "healRate": "0.9 of the bar per second",
+    "toast": { "inMs": 250, "holdMs": 3200, "outMs": 800, "risePx": 4 },
+    "promptFadeMs": 180,
+    "journalFadeMs": 220,
+    "journalLiftPx": 10,
+    "hudHideFadeMs": 250,
+    "lowHpPulse": "below 25%: fill brightness 0.82–1.0, ~0.8 Hz",
+    "lowStaminaPulse": "below 15%: fill opacity 0.6–1.0, ~0.9 Hz",
+    "reducedMotion": "Keep fades, drop pulses and the toast rise"
+  },
+  "rules": [
+    "The screen belongs to the world: no panel behind vitals, tracker or compass.",
+    "Gold marks where to look next: quest diamond, active hotbar slot, boss phase notch. Nothing else.",
+    "1px hairlines only. No chamfers, glows, gradients on chrome, or rounded corners.",
+    "Shadows exist for legibility over bright sky, not for decoration.",
+    "Show only what the store knows: quests, lore and items come from WorldMillLocalRpgStore.",
+    "H hides everything; J opens the journal and frees the cursor; Esc closes it."
+  ]
+}

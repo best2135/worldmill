@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WorldMill HUD</title>
+<meta name="description" content="WorldMill HUD after the restraint pass: hairlines, dark glass, a mostly empty screen, and gold only where the player should look next.">
+<style>
+/* ==========================================================================
+   WorldMill HUD — restraint pass (tokens v2.0.0)
+   Mirrors docs/ui-tokens.json and Scripts/UI/WorldMillMinimalHud.cs.
+   ========================================================================== */
+:root {
+  color-scheme: dark;
+  --ink: #e8e2d4;
+  --ink-strong: rgba(232, 226, 212, .94);
+  --ink-muted: rgba(232, 226, 212, .72);
+  --ink-faint: rgba(232, 226, 212, .48);
+  --hair: rgba(232, 226, 212, .16);
+  --hair-strong: rgba(232, 226, 212, .32);
+  --gold: #d4a853;
+  --hp: #9b2e2a;
+  --hp-trail: rgba(232, 226, 212, .50);
+  --st: #3f7659;
+  --st-trail: rgba(232, 226, 212, .32);
+  --xp: rgba(212, 168, 83, .72);
+  --surface: #0c0e12;
+  --page: #08090b;
+  --serif: 'EB Garamond', 'Cormorant Garamond', 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --sans: Inter, 'Segoe UI', 'Helvetica Neue', system-ui, -apple-system, Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --shadow: 1px 1px 0 rgba(0, 0, 0, .7), 0 1px 0 rgba(0, 0, 0, .4);
+}
+* { box-sizing: border-box; }
+html { background: var(--page); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink-muted);
+  font: 400 14px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 1px solid var(--ink-muted); outline-offset: 3px; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 32px 16px 56px; }
+
+/* ---------- Page header ---------- */
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; padding-bottom: 20px; border-bottom: 1px solid var(--hair); }
+.head h1 { margin: 0; font: 500 28px/1.15 var(--serif); color: var(--ink-strong); letter-spacing: .005em; }
+.head p { margin: 0; color: var(--ink-faint); font-size: 13px; }
+.head .meta { margin-left: auto; font: 12px/1.4 var(--mono); color: var(--ink-faint); }
+
+/* ---------- Quiet text toolbar ---------- */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 22px; padding: 18px 0 14px; }
+.toolbar .lbl { font-size: 12px; color: var(--ink-faint); margin-right: 2px; }
+.toolbar button {
+  appearance: none; background: none; border: 0; padding: 4px 0; cursor: pointer;
+  font-size: 13px; color: var(--ink-faint); position: relative; transition: color 140ms ease;
+}
+.toolbar button:hover { color: var(--ink-muted); }
+.toolbar button[aria-pressed="true"] { color: var(--ink-strong); }
+.toolbar button[aria-pressed="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--ink-muted); }
+.toolbar .keys { margin-left: auto; font-size: 12px; color: var(--ink-faint); }
+.toolbar kbd, .caption kbd { font: 11px/1 var(--mono); padding: 2px 5px; border: 1px solid var(--hair-strong); color: var(--ink-muted); }
+
+/* ---------- Stage: twilight, horizon, nothing else ---------- */
+.stage {
+  --k: .8;
+  position: relative; overflow: hidden; isolation: isolate;
+  aspect-ratio: 16 / 9; min-height: 440px; width: 100%;
+  border: 1px solid var(--hair);
+  background:
+    radial-gradient(70% 34% at 50% 63%, rgba(201, 150, 108, .20), transparent 70%),
+    linear-gradient(180deg, #0a0f18 0%, #141c2a 28%, #262e3d 48%, #463f45 58%, #5f524f 62.8%, #16181c 63%, #101215 76%, #08090b 100%);
+  font-family: var(--sans); color: var(--ink-strong);
+  user-select: none;
+}
+.horizon { position: absolute; left: 0; right: 0; top: 63%; height: 1px; background: linear-gradient(90deg, transparent, rgba(232,226,212,.20) 18%, rgba(232,226,212,.20) 82%, transparent); }
+.hud { position: absolute; inset: 0; transition: opacity 250ms ease; text-shadow: var(--shadow); }
+.stage[data-state="hidden"] .hud { opacity: 0; }
+.stage[data-state="journal"] .hud { opacity: .15; }
+.px { font-variant-numeric: tabular-nums; }
+
+/* Compass — top center */
+.compass { position: absolute; left: 50%; top: calc(var(--k) * 44px); width: calc(var(--k) * 560px); height: 1px; transform: translateX(-50%); }
+.compass .line { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(232,226,212,.34) 24%, rgba(232,226,212,.34) 76%, transparent); }
+.compass .notch { position: absolute; left: 50%; top: 1px; width: 1px; height: 4px; background: rgba(232,226,212,.45); }
+.tick { position: absolute; bottom: 1px; width: 1px; background: var(--ink); }
+.card { position: absolute; bottom: 10px; transform: translateX(-50%); font-size: 12px; line-height: 1; color: var(--ink); }
+.qmark { position: absolute; top: 0; }
+.diamond { display: block; width: 9px; height: 9px; background: var(--gold); transform: translate(-50%, -50%) rotate(45deg); box-shadow: 0 0 0 1px rgba(0,0,0,.55); }
+.qmark .dist { position: absolute; top: 9px; left: 0; transform: translateX(-50%); font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+
+/* Toast — under the compass */
+.toast { position: absolute; left: 50%; top: calc(var(--k) * 84px); transform: translateX(-50%); display: flex; align-items: center; gap: 14px; white-space: nowrap; font-size: max(12px, calc(var(--k) * 14px)); color: var(--ink-strong); opacity: 0; pointer-events: none; }
+.toast::before, .toast::after { content: ""; width: 28px; height: 1px; background: rgba(232,226,212,.30); box-shadow: none; }
+.toast.run { animation: toast 4250ms both; }
+@keyframes toast {
+  0% { opacity: 0; transform: translate(-50%, 4px); }
+  5.9% { opacity: 1; transform: translate(-50%, 0); }
+  81.2% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+
+/* Tracker — top right, borderless, two lines */
+.tracker { position: absolute; right: calc(var(--k) * 44px); top: calc(var(--k) * 32px); text-align: right; max-width: 60%; }
+.tracker .t { display: flex; align-items: center; justify-content: flex-end; gap: 10px; font: 500 max(15px, calc(var(--k) * 18px))/1.3 var(--serif); color: var(--ink-strong); }
+.tracker .t .diamond { width: 6px; height: 6px; transform: rotate(45deg); }
+.tracker .o { margin-top: 2px; font-size: max(12px, calc(var(--k) * 13px)); color: var(--ink-muted); }
+.tracker .o .px { color: var(--ink-faint); margin-left: 12px; }
+
+/* Vitals — bottom left, no panel */
+.vitals { position: absolute; left: calc(var(--k) * 44px); bottom: calc(var(--k) * 40px); }
+.bar { position: relative; height: 7px; background: rgba(12,14,18,.55); box-shadow: 0 0 0 1px rgba(0,0,0,.78); }
+.bar + .bar { margin-top: 6px; }
+.bar.st { height: 5px; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; display: block; }
+.bar .trail { width: var(--t); background: var(--hp-trail); transition: width 620ms cubic-bezier(.45, 0, .55, 1) 450ms; }
+.bar.st .trail { background: var(--st-trail); }
+.bar .fill { width: var(--v); background: var(--hp); box-shadow: inset 0 1px 0 rgba(255,255,255,.10); }
+.bar.st .fill { background: var(--st); }
+.bar.heal i { transition: width 400ms ease-out; }
+.xp { margin-top: 7px; height: 2px; background: rgba(232,226,212,.10); }
+.xp i { display: block; height: 100%; background: var(--xp); }
+.lvrow { margin-top: 9px; display: flex; gap: 14px; font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
+.lvrow b { font-weight: 400; color: var(--ink-muted); }
+
+/* Prompt — bottom center, 1px frame */
+.prompt { position: absolute; left: 50%; bottom: calc(var(--k) * 150px); transform: translate(-50%, 4px); display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: rgba(12,14,18,.58); border: 1px solid rgba(232,226,212,.24); font-size: max(12px, calc(var(--k) * 14px)); white-space: nowrap; text-shadow: none; opacity: 0; transition: opacity 180ms ease, transform 180ms ease; }
+.prompt.on { opacity: 1; transform: translate(-50%, 0); }
+.prompt kbd { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid rgba(232,226,212,.55); font: 12px/1 var(--sans); color: var(--ink-strong); }
+
+/* Combat (design only): hotbar + boss bar */
+.combat { display: none; }
+.stage[data-state="combat"] .combat { display: block; }
+.boss { position: absolute; left: 50%; bottom: calc(var(--k) * 156px); width: min(calc(var(--k) * 640px), 70%); transform: translateX(-50%); }
+.boss .name { font: 500 max(14px, calc(var(--k) * 16px))/1.2 var(--serif); color: var(--ink-strong); margin-bottom: 7px; }
+.boss .bar { height: 5px; }
+.boss .notch { position: absolute; left: 50%; top: -2px; width: 1px; height: 9px; background: var(--gold); box-shadow: none; }
+.hotbar { position: absolute; left: 50%; bottom: calc(var(--k) * 40px); transform: translateX(-50%); display: flex; gap: 6px; }
+.slot { position: relative; width: max(34px, calc(var(--k) * 44px)); aspect-ratio: 1; border: 1px solid var(--hair); background: rgba(12,14,18,.35); }
+.slot.filled { background: rgba(12,14,18,.55); border-color: var(--hair-strong); }
+.slot.active { border-color: var(--gold); }
+.slot .n { position: absolute; left: 4px; top: 2px; font-size: 10px; color: var(--ink-faint); }
+.slot .q { position: absolute; right: 4px; bottom: 2px; font-size: 10px; color: var(--ink-muted); }
+.hotname { position: absolute; left: 50%; bottom: calc(var(--k) * 40px + max(34px, calc(var(--k) * 44px)) + 8px); transform: translateX(-50%); font-size: 12px; color: var(--ink-muted); white-space: nowrap; }
+
+/* Journal — J */
+.journal { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(6,7,10,.62); opacity: 0; visibility: hidden; transition: opacity 220ms ease, visibility 0s linear 220ms; text-shadow: none; }
+.stage[data-state="journal"] .journal { opacity: 1; visibility: visible; transition: opacity 220ms ease; }
+.sheet { width: min(calc(var(--k) * 1040px), calc(100% - 32px)); height: min(calc(var(--k) * 640px + 60px), calc(100% - 32px)); background: rgba(12,14,18,.90); border: 1px solid rgba(232,226,212,.14); padding: clamp(18px, calc(var(--k) * 40px), 40px); display: grid; grid-template-rows: auto 1fr auto; transform: translateY(10px); transition: transform 220ms ease; }
+.stage[data-state="journal"] .sheet { transform: none; }
+.jhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid rgba(232,226,212,.10); }
+.jhead h2 { margin: 0; font: 500 clamp(20px, calc(var(--k) * 26px), 26px)/1 var(--serif); color: var(--ink-strong); }
+.jtabs { display: flex; gap: 24px; }
+.jtabs button { appearance: none; background: none; border: 0; padding: 2px 0; cursor: pointer; font-size: 13px; color: var(--ink-faint); position: relative; }
+.jtabs button:hover { color: rgba(232,226,212,.78); }
+.jtabs button[aria-selected="true"] { color: var(--ink-strong); }
+.jtabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1px; background: rgba(232,226,212,.7); }
+.jbody { display: grid; grid-template-columns: minmax(170px, 34%) 1fr; gap: 0 clamp(20px, calc(var(--k) * 40px), 40px); min-height: 0; padding-top: 16px; }
+.jlist { border-right: 1px solid rgba(232,226,212,.07); padding-right: clamp(10px, calc(var(--k) * 20px), 20px); overflow: auto; min-height: 0; }
+.row { display: block; width: 100%; text-align: left; appearance: none; background: none; border: 0; border-left: 1px solid transparent; padding: 7px 10px 8px 13px; margin-bottom: 3px; cursor: pointer; }
+.row:hover { background: rgba(232,226,212,.025); }
+.row[aria-selected="true"] { background: rgba(232,226,212,.045); border-left-color: rgba(232,226,212,.7); }
+.row .rt { display: flex; align-items: center; gap: 9px; font: 500 clamp(14px, calc(var(--k) * 16px), 16px)/1.3 var(--serif); color: rgba(232,226,212,.80); }
+.row[aria-selected="true"] .rt { color: var(--ink-strong); }
+.row.done .rt { color: rgba(232,226,212,.45); }
+.row .rt .diamond { width: 6px; height: 6px; transform: rotate(45deg); box-shadow: none; flex: none; }
+.row .rs { font-size: 12px; color: var(--ink-faint); margin-top: 1px; }
+.jdetail { overflow: auto; min-height: 0; max-width: 580px; padding-right: 4px; }
+.dt { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.dt h3 { margin: 0; font: 500 clamp(19px, calc(var(--k) * 24px), 24px)/1.2 var(--serif); color: var(--ink-strong); }
+.track { appearance: none; background: none; border: 1px solid var(--hair-strong); padding: 5px 14px; font-size: 13px; color: var(--ink-strong); cursor: pointer; flex: none; }
+.track:hover { border-color: rgba(232,226,212,.55); background: rgba(232,226,212,.06); }
+.state { font-size: 13px; color: var(--ink-faint); flex: none; padding-top: 4px; }
+.dm { font-size: 12px; color: var(--ink-faint); margin: 6px 0 14px; }
+.dp { margin: 0 0 18px; color: var(--ink-muted); font-size: clamp(13px, calc(var(--k) * 14px), 14px); }
+.dl { font-size: 12px; color: var(--ink-faint); margin: 0 0 6px; }
+.obj { list-style: none; margin: 0 0 18px; padding: 0; }
+.obj li { position: relative; padding-left: 18px; margin-bottom: 4px; font-size: 13px; color: var(--ink-muted); }
+.obj li::before { content: ""; position: absolute; left: 0; top: .78em; width: 8px; height: 1px; background: rgba(232,226,212,.4); }
+.done-q .obj li { color: rgba(232,226,212,.45); }
+.lore h4 { margin: 0 0 2px; font: 500 15px/1.3 var(--serif); color: rgba(232,226,212,.86); }
+.lore p { margin: 0 0 10px; font-size: 13px; color: rgba(232,226,212,.58); }
+.lore.big p { font: 15px/1.6 var(--serif); color: rgba(232,226,212,.78); }
+.jfoot { display: flex; justify-content: space-between; gap: 12px; padding-top: 12px; font-size: 12px; color: var(--ink-faint); }
+.undisc { font-size: 12px; color: rgba(232,226,212,.38); padding: 8px 14px; }
+
+.caption { margin: 10px 0 0; font-size: 13px; color: var(--ink-faint); min-height: 1.55em; }
+
+/* ---------- Reference sections ---------- */
+.sec { margin-top: 44px; }
+.sec h2 { margin: 0 0 4px; font: 500 20px/1.3 var(--serif); color: var(--ink-strong); }
+.sec > p { margin: 0 0 16px; font-size: 13px; color: var(--ink-faint); max-width: 70ch; }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0 32px; }
+.rules li { padding: 11px 0; border-top: 1px solid var(--hair); font-size: 13px; color: var(--ink-muted); }
+.rules li b { font-weight: 500; color: var(--ink-strong); }
+.gold-word { color: var(--gold); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 12px 7px 0; border-top: 1px solid var(--hair); vertical-align: top; }
+th { font-weight: 400; font-size: 12px; color: var(--ink-faint); border-top: 0; padding-bottom: 8px; }
+td { color: var(--ink-muted); }
+td:first-child { color: var(--ink-strong); white-space: nowrap; }
+td.v { font: 12px/1.55 var(--mono); color: var(--ink-muted); white-space: nowrap; }
+tr.g td { padding-top: 18px; border-top: 0; font-size: 12px; color: var(--ink-faint); }
+.sw { display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -1px; box-shadow: 0 0 0 1px rgba(232,226,212,.18); }
+.twocol { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0 40px; }
+code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast.run { animation-duration: 1ms; animation-iteration-count: 1; opacity: 1; }
+  .bar .trail, .bar.heal i, .prompt, .journal, .sheet, .hud { transition-duration: 1ms !important; transition-delay: 0s !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="head">
+  <h1>WorldMill HUD</h1>
+  <p>Restraint pass. The screen belongs to the world; the HUD only whispers.</p>
+  <span class="meta">tokens v2.0.0 · WorldMillMinimalHud.cs</span>
+</header>
+
+<div class="toolbar" role="toolbar" aria-label="HUD state">
+  <span class="lbl">State</span>
+  <button type="button" data-s="explore" aria-pressed="true">Exploring</button>
+  <button type="button" data-s="near" aria-pressed="false">Near target</button>
+  <button type="button" data-s="damage" aria-pressed="false">Damage</button>
+  <button type="button" data-s="toast" aria-pressed="false">Toast</button>
+  <button type="button" data-s="combat" aria-pressed="false">Combat</button>
+  <button type="button" data-s="journal" aria-pressed="false">Journal</button>
+  <button type="button" data-s="hidden" aria-pressed="false">Hidden</button>
+  <span class="keys"><kbd>J</kbd> journal &nbsp; <kbd>H</kbd> hide &nbsp; <kbd>E</kbd> complete</span>
+</div>
+
+<div class="stage" id="stage" data-state="explore" tabindex="0" aria-label="HUD prototype over a twilight horizon">
+  <div class="horizon" aria-hidden="true"></div>
+
+  <div class="hud" id="hud">
+    <div class="compass" aria-hidden="true">
+      <div class="line"></div><div class="notch"></div>
+      <div id="ticks"></div>
+      <div class="qmark" id="qmark"><span class="diamond"></span><span class="dist px" id="cdist"></span></div>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <div class="tracker" id="tracker">
+      <div class="t"><span class="diamond" aria-hidden="true"></span><span id="ttitle"></span></div>
+      <div class="o"><span id="tobj"></span><span class="px" id="tdist"></span></div>
+    </div>
+
+    <div class="combat" aria-hidden="true">
+      <div class="boss"><div class="name">Boss name</div><div class="bar" style="--v:68%;--t:74%"><i class="trail"></i><i class="fill"></i><span class="notch"></span></div></div>
+      <div class="hotname">Iron Greatsword</div>
+      <div class="hotbar">
+        <div class="slot filled active"><span class="n">1</span></div>
+        <div class="slot filled"><span class="n">2</span><span class="q">3</span></div>
+        <div class="slot"><span class="n">3</span></div>
+        <div class="slot"><span class="n">4</span></div>
+      </div>
+    </div>
+
+    <div class="prompt" id="prompt"><kbd>E</kbd><span id="ptext"></span></div>
+
+    <div class="vitals">
+      <div class="bar hp" id="hpbar"><i class="trail"></i><i class="fill"></i></div>
+      <div class="bar st" id="stbar"><i class="trail"></i><i class="fill"></i></div>
+      <div class="xp" id="xpbar"><i></i></div>
+      <div class="lvrow"><b id="lv"></b><span id="weapon"></span></div>
+    </div>
+  </div>
+
+  <div class="journal" id="journal" role="dialog" aria-label="Journal">
+    <div class="sheet">
+      <div class="jhead">
+        <h2>Journal</h2>
+        <div class="jtabs" role="tablist">
+          <button type="button" role="tab" data-tab="quests" aria-selected="true">Quests</button>
+          <button type="button" role="tab" data-tab="chronicle" aria-selected="false">Chronicle</button>
+          <button type="button" role="tab" data-tab="inventory" aria-selected="false">Inventory</button>
+        </div>
+      </div>
+      <div class="jbody"><div class="jlist" id="jlist"></div><div class="jdetail" id="jdetail"></div></div>
+      <div class="jfoot"><span>J or Esc to close</span><span class="px" id="jxp"></span></div>
+    </div>
+  </div>
+</div>
+<p class="caption" id="caption" aria-live="polite"></p>
+
+<section class="sec">
+  <h2>Rules</h2>
+  <p>Elden Ring and Witcher 3 both leave the frame to the landscape. Everything here earns its pixels or goes.</p>
+  <ul class="rules">
+    <li><b>Mostly empty.</b> No panel behind vitals, tracker or compass. Text sits on the world with a 1px shadow.</li>
+    <li><b><span class="gold-word">Gold</span> marks where to look next.</b> Quest diamond, active hotbar slot, boss phase notch. The 2px XP line is the one dimmed exception.</li>
+    <li><b>Hairlines only.</b> 1px rules and frames. No chamfers, glows, bevels or rounded corners.</li>
+    <li><b>Sentence case.</b> Title case only for place names like Oakhaven Crossing and boss names; store titles keep their own casing.</li>
+    <li><b>Only what the store knows.</b> Quests, lore and items come from <code>WorldMillLocalRpgStore</code>. No placeholder flavour text.</li>
+    <li><b>Legibility over bright sky.</b> Shadow strength follows <code>SunElevationDeg</code>: firmer at noon, nearly gone at dusk.</li>
+  </ul>
+</section>
+
+<section class="sec">
+  <h2>Tokens</h2>
+  <p>Authored at 1080p. Unity scales by <code>max(0.6, Screen.height / 1080)</code> and keeps hairlines at a whole pixel. Full set in <code>docs/ui-tokens.json</code>.</p>
+  <div class="twocol">
+    <table>
+      <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr class="g"><td colspan="3">Color</td></tr>
+        <tr><td><span class="sw" style="background:#e8e2d4"></span>ink</td><td class="v">#e8e2d4</td><td>Text and hairlines at .94 / .72 / .48 / .16</td></tr>
+        <tr><td><span class="sw" style="background:#d4a853"></span>gold</td><td class="v">#d4a853</td><td>Attention targets only</td></tr>
+        <tr><td><span class="sw" style="background:#9b2e2a"></span>hp</td><td class="v">#9b2e2a</td><td>Health fill</td></tr>
+        <tr><td><span class="sw" style="background:rgba(232,226,212,.5)"></span>hp trail</td><td class="v">ink 50%</td><td>Damage trail</td></tr>
+        <tr><td><span class="sw" style="background:#3f7659"></span>stamina</td><td class="v">#3f7659</td><td>Stamina fill</td></tr>
+        <tr><td><span class="sw" style="background:rgba(212,168,83,.72)"></span>xp</td><td class="v">gold 72%</td><td>2px XP line</td></tr>
+        <tr><td><span class="sw" style="background:#0c0e12"></span>surface</td><td class="v">#0c0e12</td><td>Tracks 55%, prompt 58%, sheet 90%</td></tr>
+        <tr><td><span class="sw" style="background:rgba(6,7,10,.62)"></span>scrim</td><td class="v">#06070a 62%</td><td>Behind the journal</td></tr>
+        <tr class="g"><td colspan="3">Type</td></tr>
+        <tr><td>serif</td><td class="v">26 · 24 · 18 · 16 · 15</td><td>Journal, detail, tracker, rows, lore</td></tr>
+        <tr><td>sans</td><td class="v">14 · 13 · 12 · 11</td><td>Body, objective, meta, distance</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr class="g"><td colspan="3">Size</td></tr>
+        <tr><td>hp height</td><td class="v">7px</td><td>Width 280 + 1.2 per max HP over 100</td></tr>
+        <tr><td>stamina height</td><td class="v">5px</td><td>Width 220 + 1.2 per point over 100</td></tr>
+        <tr><td>xp height</td><td class="v">2px</td><td>Same width as HP, no frame</td></tr>
+        <tr><td>compass</td><td class="v">560 × 1px</td><td>180° field, ticks every 15°</td></tr>
+        <tr><td>margins</td><td class="v">44 · 40 · 32</td><td>Side, bottom, top</td></tr>
+        <tr><td>journal</td><td class="v">1040 × 640</td><td>40 padding, 300 list column</td></tr>
+        <tr class="g"><td colspan="3">Motion</td></tr>
+        <tr><td>trail delay</td><td class="v">450ms</td><td>Then drains, faster when the gap is large</td></tr>
+        <tr><td>toast</td><td class="v">250 / 3200 / 800</td><td>In, hold, out</td></tr>
+        <tr><td>prompt · journal</td><td class="v">180 · 220ms</td><td>Fade; journal lifts 10px</td></tr>
+        <tr><td>hide hud</td><td class="v">250ms</td><td>Everything fades together</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="sec">
+  <h2>In Unity</h2>
+  <p><code>WorldMill.UI.WorldMillMinimalHud</code> draws all of this in IMGUI with no assets. The player controller pushes vitals through <code>SetVitals</code> and reads <code>IsCodexOpen</code> to pause look input.</p>
+  <table>
+    <thead><tr><th>Region</th><th>Method</th><th>Reads from the store</th></tr></thead>
+    <tbody>
+      <tr><td>Compass</td><td class="v">DrawCompass</td><td><code>ActiveQuest.targetPosition</code>, camera yaw</td></tr>
+      <tr><td>Toast</td><td class="v">DrawToast</td><td><code>ToastMessage</code>, <code>ToastTimestamp</code></td></tr>
+      <tr><td>Tracker</td><td class="v">DrawTracker</td><td><code>ActiveQuest.title</code>, <code>objectives</code>, <code>questCompletionRadius</code></td></tr>
+      <tr><td>Vitals</td><td class="v">DrawVitals</td><td><code>Save.level</code>, <code>xp</code>, <code>xpToNext</code>, <code>equippedWeapon</code></td></tr>
+      <tr><td>Prompt</td><td class="v">DrawPrompt</td><td><code>CanCompleteActiveQuest</code> (the store handles <kbd>E</kbd>)</td></tr>
+      <tr><td>Journal</td><td class="v">DrawJournal</td><td><code>Quests</code>, <code>lore</code>, <code>Save.inventory</code>, <code>SetActiveQuest</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // ---- Store data, verbatim from WorldMillLocalRpgStore.cs ----
+  var QUESTS = [
+    { id: 'q_river_crossing', title: 'The Sunken Crossing', giver: 'Aldric the Ferryman',
+      description: 'Follow the dirt road west out of Oakhaven to the flooded river crossing and speak with Aldric by the bridge.',
+      target: [448, 492], objectives: ['Follow the road west to the river bridge', 'Inspect the flooded crossing'],
+      lore: [{ title: "Flooded King's Road", text: 'Three winters ago the northern glaciers fractured, swelling the valley river until it drowned the old merchant ford. Only the timber bridge west of Oakhaven still stands.' }],
+      xp: 150, reward: "Ferryman's Lantern" },
+    { id: 'q_rune_sanctuary', title: 'Watch of the High Stones', giver: 'Runekeeper Astrid',
+      description: 'Climb the ridge road northeast of Oakhaven to the Ancient Rune Sanctuary overlooking the valley.',
+      target: [618, 588], objectives: ['Ascend the northeastern ridge', 'Reach the Ancient Rune Sanctuary'],
+      lore: [{ title: 'The Standing Circle', text: "Carved long before Oakhaven's first timber was felled, the six granite pillars align with the northern peaks to mark the ancient border of the highland clans." }],
+      xp: 300, reward: "Astrid's Runic Mantle" },
+    { id: 'q_alpine_summit', title: 'Crown of the Northern Ridge', giver: 'Hearth-Smith Torin',
+      description: 'Venture into the high snow peaks north of the valley to claim the forged Heartcrystal relic.',
+      target: [540, 760], objectives: ['Cross the northern pine forests', 'Reach the snowline summit'],
+      lore: [{ title: 'Heartcrystal Steel', text: 'Smiths of the First Hearth quenched their blades in glacial meltwater mixed with crushed blue quartz from the northern peaks.' }],
+      xp: 500, reward: 'Heartcrystal Blade' }
+  ];
+  // Save state after completing The Sunken Crossing (store math: 150 XP -> Lv. 2, 50 / 150).
+  var SAVE = { level: 2, xp: 50, xpToNext: 150, maxHp: 115, maxStamina: 110,
+    weapon: 'Iron Greatsword', armor: 'Weathered Brigandine', completed: ['q_river_crossing'], active: 'q_rune_sanctuary',
+    inventory: [
+      { id: 'iron_greatsword', name: 'Iron Greatsword', kind: 'weapon', qty: 1, description: 'Balanced northern longblade.' },
+      { id: 'weathered_brigandine', name: 'Weathered Brigandine', kind: 'armor', qty: 1, description: 'Riveted leather and iron plates.' },
+      { id: 'pine_torch', name: 'Pitch Pine Torch', kind: 'consumable', qty: 3, description: 'Press T to ignite in dusk or deep woods.' },
+      { id: 'ferrymans_lantern', name: "Ferryman's Lantern", kind: 'trinket', qty: 1, description: 'Warm oil lantern etched with river wards.' }
+    ] };
+  var COMPLETION_RADIUS = 16;
+  var POS_BRIDGE = [452, 496], POS_NEAR = [610, 581];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var state = 'explore', tab = 'quests', selQuest = SAVE.active, selLore = 0, selItem = SAVE.inventory[0].id;
+  var pos = POS_BRIDGE, heading = 40;
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function quest(id) { for (var i = 0; i < QUESTS.length; i++) if (QUESTS[i].id === id) return QUESTS[i]; return null; }
+  function done(q) { return SAVE.completed.indexOf(q.id) >= 0; }
+  function active() { var q = quest(SAVE.active); return q && !done(q) ? q : null; }
+  function dist(q) { var dx = q.target[0] - pos[0], dz = q.target[1] - pos[1]; return Math.sqrt(dx * dx + dz * dz); }
+  function bearing(q) { return Math.atan2(q.target[0] - pos[0], q.target[1] - pos[1]) * 180 / Math.PI; }
+  function delta(a, b) { var d = ((b - a) % 360 + 540) % 360 - 180; return d; }
+  function metres(m) { return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'; }
+  function sentence(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : ''; }
+
+  // ---- Scale: authored at 1080p, previewed down to 0.6 ----
+  function rescale() { stage.style.setProperty('--k', Math.max(0.6, Math.min(1, stage.clientWidth / 1280)).toFixed(3)); }
+  if (window.ResizeObserver) new ResizeObserver(rescale).observe(stage);
+  rescale();
+
+  // ---- Compass ----
+  var ticks = [], tickWrap = $('ticks');
+  for (var d = 0; d < 360; d += 15) {
+    var t = document.createElement('div'); t.className = 'tick';
+    var cardinal = d % 90 === 0;
+    t.style.height = (cardinal ? 6 : 3) + 'px';
+    tickWrap.appendChild(t);
+    var lbl = null;
+    if (cardinal) { lbl = document.createElement('div'); lbl.className = 'card'; lbl.textContent = 'NESW'.charAt(d / 90); tickWrap.appendChild(lbl); }
+    ticks.push({ deg: d, el: t, lbl: lbl, cardinal: cardinal });
+  }
+  function smooth(e0, e1, x) { var t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); }
+  function drawCompass() {
+    for (var i = 0; i < ticks.length; i++) {
+      var k = ticks[i], dd = delta(heading, k.deg), ad = Math.abs(dd);
+      var vis = ad <= 88, x = (50 + dd / 90 * 50) + '%', edge = 1 - smooth(0.55, 1, ad / 90);
+      k.el.style.display = vis ? '' : 'none';
+      k.el.style.left = x;
+      k.el.style.opacity = ((k.cardinal ? 0.62 : 0.24) * edge).toFixed(3);
+      if (k.lbl) { k.lbl.style.display = vis ? '' : 'none'; k.lbl.style.left = x; k.lbl.style.opacity = ((k.deg === 0 ? 0.92 : 0.66) * edge).toFixed(3); }
+    }
+    var q = active(), m = $('qmark');
+    if (!q) { m.style.display = 'none'; return; }
+    var dq = delta(heading, bearing(q)), off = Math.abs(dq) > 88;
+    m.style.display = '';
+    m.style.left = (50 + Math.max(-88, Math.min(88, dq)) / 90 * 50) + '%';
+    m.style.opacity = off ? 0.55 : 1;
+    $('cdist').textContent = metres(dist(q));
+  }
+
+  // ---- HUD ----
+  function setBar(el, v, t, heal) {
+    el.classList.toggle('heal', !!heal);
+    el.style.setProperty('--v', (v * 100).toFixed(1) + '%');
+    el.style.setProperty('--t', (t * 100).toFixed(1) + '%');
+  }
+  function drawHud() {
+    var q = active();
+    var tr = $('tracker');
+    tr.style.display = q ? '' : 'none';
+    if (q) {
+      var near = dist(q) <= COMPLETION_RADIUS * 4;
+      $('ttitle').textContent = q.title;
+      $('tobj').textContent = q.objectives[near ? q.objectives.length - 1 : 0];
+      $('tdist').textContent = metres(dist(q));
+    }
+    var hpW = Math.max(180, Math.min(460, 280 + (SAVE.maxHp - 100) * 1.2));
+    var stW = Math.max(140, Math.min(380, 220 + (SAVE.maxStamina - 100) * 1.2));
+    $('hpbar').style.width = 'calc(var(--k) * ' + hpW + 'px)';
+    $('stbar').style.width = 'calc(var(--k) * ' + stW + 'px)';
+    $('xpbar').style.width = 'calc(var(--k) * ' + hpW + 'px)';
+    $('xpbar').firstChild.style.width = (SAVE.xp / SAVE.xpToNext * 100) + '%';
+    $('lv').textContent = 'Lv. ' + SAVE.level;
+    $('weapon').textContent = SAVE.weapon;
+    var canComplete = q && dist(q) <= COMPLETION_RADIUS && state !== 'journal';
+    $('ptext').textContent = q ? 'Complete — ' + q.title : '';
+    $('prompt').classList.toggle('on', !!canComplete);
+    drawCompass();
+  }
+
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.remove('run'); void el.offsetWidth; el.classList.add('run');
+  }
+
+  // ---- Journal ----
+  function drawJournal() {
+    var tabs = stage.querySelectorAll('.jtabs button');
+    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-selected', String(tabs[i].getAttribute('data-tab') === tab));
+    var list = '', detail = '';
+    if (tab === 'quests') {
+      QUESTS.forEach(function (q) {
+        var isActive = active() === q, d = done(q);
+        var sub = d ? 'Completed' : isActive ? 'Tracking · ' + q.giver : q.giver;
+        list += '<button type="button" class="row' + (d ? ' done' : '') + '" data-q="' + q.id + '" aria-selected="' + (q.id === selQuest) + '">' +
+          '<span class="rt">' + (isActive ? '<span class="diamond"></span>' : '') + esc(q.title) + '</span><div class="rs">' + esc(sub) + '</div></button>';
+      });
+      var s = quest(selQuest), sd = done(s), tracked = active() === s;
+      detail = '<div class="' + (sd ? 'done-q' : '') + '"><div class="dt"><h3>' + esc(s.title) + '</h3>' +
+        (sd ? '<span class="state">Completed</span>' : tracked ? '<span class="state">Tracking</span>' : '<button type="button" class="track" data-track="' + s.id + '">Track</button>') +
+        '</div><div class="dm">Given by ' + esc(s.giver) + ' · ' + s.xp + ' XP · ' + esc(s.reward) + '</div>' +
+        '<p class="dp">' + esc(s.description) + '</p><p class="dl">Objectives</p><ul class="obj">' +
+        s.objectives.map(function (o) { return '<li>' + esc(o) + '</li>'; }).join('') + '</ul><p class="dl">Chronicle</p><div class="lore">' +
+        s.lore.map(function (l) { return '<h4>' + esc(l.title) + '</h4><p>' + esc(l.text) + '</p>'; }).join('') + '</div></div>';
+    } else if (tab === 'chronicle') {
+      var known = [], hidden = 0;
+      QUESTS.forEach(function (q) { q.lore.forEach(function (l) { if (done(q) || active() === q) known.push({ l: l, q: q }); else hidden++; }); });
+      selLore = Math.min(selLore, known.length - 1);
+      known.forEach(function (e, i) {
+        list += '<button type="button" class="row" data-lore="' + i + '" aria-selected="' + (i === selLore) + '"><span class="rt">' + esc(e.l.title) + '</span><div class="rs">' + esc(e.q.title) + '</div></button>';
+      });
+      if (hidden) list += '<div class="undisc">' + hidden + (hidden === 1 ? ' entry' : ' entries') + ' undiscovered</div>';
+      var e = known[selLore];
+      detail = '<div class="dt"><h3>' + esc(e.l.title) + '</h3></div><div class="dm">From ' + esc(e.q.title) + '</div><div class="lore big"><p>' + esc(e.l.text) + '</p></div>';
+    } else {
+      SAVE.inventory.forEach(function (it) {
+        var eq = it.name === SAVE.weapon || it.name === SAVE.armor;
+        list += '<button type="button" class="row" data-item="' + it.id + '" aria-selected="' + (it.id === selItem) + '"><span class="rt">' + esc(it.name) + (it.qty > 1 ? ' ×' + it.qty : '') + '</span><div class="rs">' + sentence(it.kind) + (eq ? ' · Equipped' : '') + '</div></button>';
+      });
+      var it = SAVE.inventory.filter(function (x) { return x.id === selItem; })[0];
+      var eqd = it.name === SAVE.weapon || it.name === SAVE.armor;
+      detail = '<div class="dt"><h3>' + esc(it.name) + '</h3></div><div class="dm">' + sentence(it.kind) + (it.qty > 1 ? ' · ' + it.qty + ' carried' : '') + (eqd ? ' · Equipped' : '') + '</div><p class="dp">' + esc(it.description) + '</p>';
+    }
+    $('jlist').innerHTML = list;
+    $('jdetail').innerHTML = detail;
+    $('jxp').textContent = 'Lv. ' + SAVE.level + ' · ' + SAVE.xp + ' / ' + SAVE.xpToNext + ' XP';
+  }
+
+  // ---- States ----
+  var CAPTIONS = {
+    explore: 'Exploring from the river bridge. Compass, tracker and vitals only; the gold diamond is the next place to look.',
+    near: 'Within 16 m of the sanctuary. The objective advances and the framed prompt appears; the store completes on E.',
+    damage: 'A hit drops health instantly; the pale trail holds 450 ms, then drains. A dodge drains stamina the same way.',
+    toast: 'Store toast, verbatim. Fades in 250 ms, holds 3.2 s, fades out over 800 ms.',
+    combat: 'Design only, not in WorldMillMinimalHud yet: gold on the active hotbar slot and the boss phase notch. No bosses exist in the store, so the name is a placeholder.',
+    journal: 'J opens the journal and frees the cursor. Track switches the active quest; Esc or J closes.',
+    hidden: 'H hides everything for screenshots. Press H again to bring it back.'
+  };
+  var timers = [];
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function setState(s) {
+    clearTimers();
+    state = s;
+    stage.setAttribute('data-state', s);
+    var btns = document.querySelectorAll('.toolbar button');
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-s') === s));
+    pos = s === 'near' ? POS_NEAR : POS_BRIDGE;
+    setBar($('hpbar'), 1, 1, true);
+    setBar($('stbar'), 1, 1, true);
+    if (s === 'damage') {
+      timers.push(setTimeout(function () { setBar($('hpbar'), 0.54, 1); setBar($('stbar'), 0.62, 1); }, 380));
+      timers.push(setTimeout(function () { setBar($('hpbar'), 0.54, 0.54); setBar($('stbar'), 0.62, 0.62); }, 400));
+      timers.push(setTimeout(function () { setBar($('stbar'), 1, 1, true); }, 2600));
+    }
+    if (s === 'combat') { setBar($('hpbar'), 0.78, 0.78); setBar($('stbar'), 0.46, 0.46); }
+    if (s === 'toast') toast('Quest completed: The Sunken Crossing (+150 XP · Level 2!)');
+    if (s === 'journal') { var a = active(); if (a) selQuest = a.id; drawJournal(); }
+    $('caption').textContent = CAPTIONS[s];
+    drawHud();
+  }
+
+  document.querySelector('.toolbar').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-s]'); if (b) setState(b.getAttribute('data-s'));
+  });
+  $('journal').addEventListener('click', function (e) {
+    var t;
+    if ((t = e.target.closest('[data-tab]'))) { tab = t.getAttribute('data-tab'); drawJournal(); return; }
+    if ((t = e.target.closest('[data-track]'))) {
+      SAVE.active = t.getAttribute('data-track');
+      toast('Tracking: ' + quest(SAVE.active).title);
+      drawJournal(); drawHud(); return;
+    }
+    if ((t = e.target.closest('[data-q]'))) { selQuest = t.getAttribute('data-q'); drawJournal(); return; }
+    if ((t = e.target.closest('[data-lore]'))) { selLore = +t.getAttribute('data-lore'); drawJournal(); return; }
+    if ((t = e.target.closest('[data-item]'))) { selItem = t.getAttribute('data-item'); drawJournal(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey || /input|textarea|select/i.test(e.target.tagName)) return;
+    var k = e.key.toLowerCase();
+    if (k === 'j' && state !== 'hidden') setState(state === 'journal' ? 'explore' : 'journal');
+    else if (k === 'h') setState(state === 'hidden' ? 'explore' : 'hidden');
+    else if (k === 'escape' && state === 'journal') setState('explore');
+  });
+
+  // Gentle look-around so the compass reads as live; static under reduced motion.
+  var t0 = performance.now();
+  function frame(now) {
+    if (!reduce && state !== 'hidden' && state !== 'journal') {
+      heading = 40 + 7 * Math.sin((now - t0) / 2600);
+      drawCompass();
+    }
+    requestAnimationFrame(frame);
+  }
+  setState('explore');
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
