@@ -1,5 +1,6 @@
 mod cache;
 mod jobs;
+mod rpg;
 mod singleflight;
 
 use std::collections::HashSet;
@@ -12,10 +13,10 @@ use std::time::Instant;
 use anyhow::Result;
 use axum::body::Bytes;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{Path as AxumPath, State};
+use axum::extract::{Path as AxumPath, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,7 @@ use worldmill_gpu::GpuWorkerPool;
 
 use crate::cache::LruCache;
 use crate::jobs::{JobRegistry, JobSnapshot, JobStatus, run_job};
+use crate::rpg::{NewStructure, PlacedStructure, RpgError, RpgStore};
 use crate::singleflight::SingleFlight;
 
 type ChunkKey = (ChunkCoord, u32);
@@ -46,6 +48,8 @@ struct AppState {
     /// Bounds concurrent batch chunk bakes so `/ws` streaming keeps GPU slots.
     batch_permits: Arc<Semaphore>,
     jobs: JobRegistry,
+    /// Authoritative, disk-persisted RPG world state (quests, player, structures).
+    rpg: Arc<RpgStore>,
     /// Telemetry counters.
     gpu_bakes: AtomicU64,
     cache_hits: AtomicU64,
@@ -62,6 +66,7 @@ impl AppState {
         cache_dir: PathBuf,
         max_mem_chunks: usize,
         batch_concurrency: usize,
+        rpg: Arc<RpgStore>,
     ) -> Self {
         Self {
             gpu,
@@ -70,6 +75,7 @@ impl AppState {
             cache_dir,
             batch_permits: Arc::new(Semaphore::new(batch_concurrency.max(1))),
             jobs: JobRegistry::new(MAX_RETAINED_JOBS),
+            rpg,
             gpu_bakes: AtomicU64::new(0),
             cache_hits: AtomicU64::new(0),
             mem_hits: AtomicU64::new(0),
@@ -426,6 +432,103 @@ async fn api_cancel_job(
     }
 }
 
+// ---------------------------------------------------------------------------
+// RPG world state API (`/api/rpg/*`)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+struct StructureResponse {
+    structure: PlacedStructure,
+}
+
+#[derive(Debug, Serialize)]
+struct StructureRemovedResponse {
+    removed: bool,
+    structure: PlacedStructure,
+}
+
+#[derive(Debug, Serialize)]
+struct StructuresClearedResponse {
+    removed: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClearStructuresQuery {
+    seed: Option<u32>,
+}
+
+fn rpg_error(err: RpgError) -> Response {
+    let status =
+        StatusCode::from_u16(err.status_code()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    if status.is_server_error() {
+        warn!(%err, "RPG state operation failed");
+    }
+    (status, Json(serde_json::json!({ "error": err.to_string() }))).into_response()
+}
+
+/// Runs a (briefly blocking, disk-writing) RPG store operation off the async
+/// runtime and maps its result to a JSON response.
+async fn rpg_op<T, F>(state: &Arc<AppState>, success: StatusCode, op: F) -> Response
+where
+    T: Serialize + Send + 'static,
+    F: FnOnce(&RpgStore) -> Result<T, RpgError> + Send + 'static,
+{
+    let store = Arc::clone(&state.rpg);
+    match tokio::task::spawn_blocking(move || op(&store)).await {
+        Ok(Ok(body)) => (success, Json(body)).into_response(),
+        Ok(Err(err)) => rpg_error(err),
+        Err(join_err) => rpg_error(RpgError::Persist(join_err.to_string())),
+    }
+}
+
+/// `GET /api/rpg/state` — `{ player, quests, structures }`.
+async fn api_rpg_state(State(state): State<Arc<AppState>>) -> Response {
+    rpg_op(&state, StatusCode::OK, |s| Ok(s.snapshot())).await
+}
+
+/// `POST /api/rpg/quests/{id}/complete` — grant rewards, level up, advance.
+async fn api_rpg_complete_quest(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+) -> Response {
+    rpg_op(&state, StatusCode::OK, move |s| s.complete_quest(&id)).await
+}
+
+/// `POST /api/rpg/structures` — `{ kind, position, rotation_y, seed }` -> `{ structure }`.
+async fn api_rpg_create_structure(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<NewStructure>,
+) -> Response {
+    rpg_op(&state, StatusCode::CREATED, move |s| {
+        s.add_structure(req).map(|structure| StructureResponse { structure })
+    })
+    .await
+}
+
+/// `DELETE /api/rpg/structures/{id}` — 200 `{ removed, structure }` or 404.
+async fn api_rpg_delete_structure(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<u64>,
+) -> Response {
+    rpg_op(&state, StatusCode::OK, move |s| {
+        s.remove_structure(id)
+            .map(|structure| StructureRemovedResponse { removed: true, structure })
+    })
+    .await
+}
+
+/// `POST /api/rpg/structures/clear[?seed=N]` — remove all (or one seed's) structures.
+async fn api_rpg_clear_structures(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<ClearStructuresQuery>,
+) -> Response {
+    rpg_op(&state, StatusCode::OK, move |s| {
+        s.clear_structures(q.seed)
+            .map(|removed| StructuresClearedResponse { removed })
+    })
+    .await
+}
+
 async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<AppState>>,
@@ -601,14 +704,28 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|| (gpu.worker_count() / 2).max(1));
     info!(max_mem_chunks, batch_concurrency, "Cache & batch limits configured");
 
-    let state = Arc::new(AppState::new(gpu, cache_dir, max_mem_chunks, batch_concurrency));
+    let rpg = Arc::new(RpgStore::open(&cache_dir)?);
+    info!(path = %rpg.path().display(), "RPG world state store ready");
+
+    let state = Arc::new(AppState::new(
+        gpu,
+        cache_dir,
+        max_mem_chunks,
+        batch_concurrency,
+        rpg,
+    ));
 
     let mut app = Router::new()
         .route("/ws", get(ws_handler))
         .route("/api/stats", get(api_stats))
         .route("/api/batch/bake", post(api_batch_bake))
         .route("/api/batch/jobs", post(api_create_job).get(api_list_jobs))
-        .route("/api/batch/jobs/{id}", get(api_get_job).delete(api_cancel_job));
+        .route("/api/batch/jobs/{id}", get(api_get_job).delete(api_cancel_job))
+        .route("/api/rpg/state", get(api_rpg_state))
+        .route("/api/rpg/quests/{id}/complete", post(api_rpg_complete_quest))
+        .route("/api/rpg/structures", post(api_rpg_create_structure))
+        .route("/api/rpg/structures/clear", post(api_rpg_clear_structures))
+        .route("/api/rpg/structures/{id}", delete(api_rpg_delete_structure));
 
     if let Some(dist) = find_web_dist() {
         info!(dir = %dist.display(), "Serving static WebGPU frontend on /");

@@ -88,6 +88,35 @@ fn noise2(p: vec2<f32>, seed: f32) -> f32 {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
 }
 
+fn fbm2(p: vec2<f32>, seed: f32) -> f32 {
+    return 0.5 * noise2(p, seed) + 0.25 * noise2(p * 2.03, seed + 19.7);
+}
+
+fn terrain_ruggedness(xz: vec2<f32>) -> f32 {
+    return smoothstep(80.0, 176.0, max(abs(xz.x), abs(xz.y)));
+}
+
+fn river_field(xz: vec2<f32>, seed: f32) -> f32 {
+    let warp = vec2<f32>(
+        fbm2(xz * 0.0035 + vec2<f32>(5.4, 9.1), seed + 151.0),
+        fbm2(xz * 0.0035 + vec2<f32>(9.7, 2.8), seed + 173.0)
+    );
+    let noise = fbm2((xz + warp * 78.0) * vec2<f32>(0.006, 0.004), seed + 67.0);
+    // Guide one zero crossing through the western meadow for every seed.
+    let meadow_channel = (xz.x + warp.x * 46.0 + 36.0) * 0.010 + noise * 0.08;
+    return mix(meadow_channel, noise, terrain_ruggedness(xz));
+}
+
+const WATER_LEVEL: f32 = -6.0;
+const RIVERBED_Y: f32 = WATER_LEVEL - 3.5;
+
+struct TerrainColumn {
+    base_height: f32,
+    height: f32,
+    river_bank_factor: f32,
+    ruggedness: f32,
+};
+
 fn smooth_min(a: f32, b: f32, width: f32) -> f32 {
     let overlap = max(width - abs(a - b), 0.0) / width;
     return min(a, b) - 0.25 * width * overlap * overlap;
@@ -97,7 +126,7 @@ fn smooth_max(a: f32, b: f32, width: f32) -> f32 {
     return -smooth_min(-a, -b, width);
 }
 
-fn terrain_height(xz: vec2<f32>, seed: f32) -> f32 {
+fn terrain_column(xz: vec2<f32>, seed: f32) -> TerrainColumn {
     let warp = vec2<f32>(
         noise2(xz * 0.005 + vec2<f32>(3.1, 7.8), seed + 3.0),
         noise2(xz * 0.005 + vec2<f32>(8.4, 2.6), seed + 11.0)
@@ -110,28 +139,46 @@ fn terrain_height(xz: vec2<f32>, seed: f32) -> f32 {
     let foothills = noise2(warped * 0.018, seed + 59.0) * 7.0;
     let uplands = 5.0 + 12.0 * continent + ridge * ridge * (20.0 + 66.0 * uplift) + foothills;
 
-    // A sinuous river centerline cuts a trough with rounded shelves and steep risers.
-    let channel_noise = noise2(warped * vec2<f32>(0.0055, 0.0035), seed + 67.0);
-    let channel = sqrt(channel_noise * channel_noise + 0.001);
-    let incision = 34.0 * (1.0 - smoothstep(0.045, 0.46, channel));
+    // Keep rounded shelves and steep risers in the mountain canyons.
+    let canyon_noise = noise2(warped * vec2<f32>(0.0055, 0.0035), seed + 67.0);
+    let canyon_dist = sqrt(canyon_noise * canyon_noise + 0.001);
+    let incision = 34.0 * (1.0 - smoothstep(0.045, 0.46, canyon_dist));
     let cut = uplands - incision;
     let step_height = 6.0;
     let layer = cut / step_height;
     let shelves = step_height * (floor(layer) + smoothstep(0.20, 0.80, fract(layer)));
-    let canyon = 1.0 - smoothstep(0.36, 0.69, channel);
-    return mix(cut, shelves, canyon);
+    let canyon = 1.0 - smoothstep(0.36, 0.69, canyon_dist);
+    let highlands = mix(cut, shelves, canyon);
+
+    // Broad slopes through the starting area meet the surrounding highlands gradually.
+    let meadow = 10.0 + 7.0 * noise2(xz * 0.008, seed + 97.0) + foothills * 0.35;
+    let ruggedness = terrain_ruggedness(xz);
+    let base_height = mix(meadow, highlands, ruggedness);
+
+    // Grade up from the U-shaped channel floor to the shore, then meet the hills.
+    let river_noise = river_field(xz, seed);
+    let river_dist = abs(river_noise);
+    let lowland = 1.0 - smoothstep(18.0, 22.0, base_height);
+    let river_bank_factor = lowland * (1.0 - smoothstep(0.17, 0.42, river_dist));
+    let river_height = mix(RIVERBED_Y, WATER_LEVEL + 4.0, smoothstep(0.012, 0.20, river_dist));
+    let height = mix(base_height, min(base_height, river_height), river_bank_factor);
+    return TerrainColumn(base_height, height, river_bank_factor, ruggedness);
 }
 
 fn add_rock_arch(d: f32, p: vec3<f32>, height: f32, relief: f32, seed: f32) -> f32 {
+    let rise = p.y - height;
+    if (rise > 48.0 || rise < -18.0) {
+        return d;
+    }
+
     let spacing = 144.0;
     let tile = floor(p.xz / spacing + 0.5);
     let tile_seed = vec3<f32>(tile, 3.0);
     let center_offset = vec2<f32>(hash31(tile_seed, seed + 211.0),
                                  hash31(tile_seed, seed + 229.0)) * 24.0 - 12.0;
     let local = p.xz - tile * spacing - center_offset;
-    let rise = p.y - height;
     // The finite arch fits inside its tile, including the blend into the terrain.
-    if (dot(local, local) > 48.0 * 48.0 || rise > 48.0 || rise < -12.0) {
+    if (dot(local, local) > 48.0 * 48.0) {
         return d;
     }
 
@@ -142,11 +189,12 @@ fn add_rock_arch(d: f32, p: vec3<f32>, height: f32, relief: f32, seed: f32) -> f
     let width = mix(17.0, 26.0, hash31(tile_seed, seed + 271.0));
     let arch_height = mix(16.0, 24.0, hash31(tile_seed, seed + 283.0));
 
-    // The upper half ellipse forms the crown. Its legs extend below the terrain.
+    // The upper half ellipse forms the crown. Round off the hanging rock legs.
     let crown = max(rise - 4.0, 0.0);
     let ring = length(vec2<f32>(span / width, crown / arch_height));
     let shell = abs(ring - 1.0) * min(width, arch_height) - 3.5;
-    let rock = smooth_max(shell, abs(depth) - 6.0, 3.0) + relief * 0.6;
+    let slab = smooth_max(shell, abs(depth) - 6.0, 3.0);
+    let rock = smooth_max(slab, -12.0 - rise, 3.0) + relief * 0.6;
     return smooth_min(d, rock, 3.5);
 }
 
@@ -156,17 +204,22 @@ struct SdfSample {
     cave_factor: f32,
 };
 
-fn sample_terrain(p: vec3<f32>, height: f32, seed: f32) -> SdfSample {
+fn sample_terrain(p: vec3<f32>, column: TerrainColumn, seed: f32) -> SdfSample {
     let overhang = fbm3(p * vec3<f32>(0.022, 0.037, 0.022), seed + 77.0, 2) * 10.0;
     let detail = noise3(p * 0.086, seed + 131.0) * 0.9;
     let relief = overhang + detail;
-    var d = p.y - height + relief;
-    d = add_rock_arch(d, p, height, relief, seed);
+    // Keep the meadow walkable and fade out overhang noise across the river cut.
+    let exposed_rock = column.ruggedness * (1.0 - column.river_bank_factor);
+    var d = p.y - column.height + relief * exposed_rock;
+    d = add_rock_arch(d, p, max(column.base_height, 24.0), relief, seed);
 
     // Intersect two warped noise isosurfaces to form linked tunnels. The wider
     // sections reach the canyon walls and open up into cavern entrances.
     var cave_factor = 0.0;
-    if (d < 13.0) {
+    // Keep caves below the riverbed and meadow while allowing mountainside entrances.
+    let cave_entrances = column.ruggedness * (1.0 - smoothstep(0.15, 0.35, column.river_bank_factor));
+    let cave_weight = mix(1.0 - smoothstep(-16.0, -11.0, p.y), 1.0, cave_entrances);
+    if (d < 13.0 && cave_weight > 0.0) {
         let cave_p = p * vec3<f32>(0.022, 0.031, 0.022);
         let c1 = fbm3(cave_p, seed + 307.0, 2);
         let c2 = fbm3(cave_p + vec3<f32>(17.3, -9.1, 23.7), seed + 409.0, 2);
@@ -174,7 +227,7 @@ fn sample_terrain(p: vec3<f32>, height: f32, seed: f32) -> SdfSample {
         let chamber = smoothstep(-0.2, 0.65, noise3(cave_p * 0.42, seed + 463.0));
         let radius = mix(0.115, 0.245, chamber);
         let carve = (radius - tunnel) * 42.0;
-        let carved = smooth_max(d, carve, 2.5);
+        let carved = mix(d, smooth_max(d, carve, 2.5), cave_weight);
         cave_factor = smoothstep(0.0, 4.0, carved - d);
         d = carved;
     }
@@ -185,7 +238,7 @@ fn sample_terrain(p: vec3<f32>, height: f32, seed: f32) -> SdfSample {
 
 fn eval_world_sdf(p: vec3<f32>) -> SdfSample {
     let seed = f32(params.seed % 10000u);
-    return sample_terrain(p, terrain_height(p.xz, seed), seed);
+    return sample_terrain(p, terrain_column(p.xz, seed), seed);
 }
 
 fn density_idx(x: u32, y: u32, z: u32) -> u32 {
@@ -201,7 +254,7 @@ fn cell_idx(x: u32, y: u32, z: u32) -> u32 {
 // -----------------------------------------------------------------------------
 // Pass 1: Evaluate 3D SDF density grid (26 x 26 x 26)
 // -----------------------------------------------------------------------------
-var<workgroup> column_heights: array<f32, 16>;
+var<workgroup> terrain_columns: array<TerrainColumn, 16>;
 
 @compute @workgroup_size(4, 4, 4)
 fn eval_density(@builtin(global_invocation_id) gid: vec3<u32>,
@@ -212,7 +265,7 @@ fn eval_density(@builtin(global_invocation_id) gid: vec3<u32>,
     let seed = f32(params.seed % 10000u);
 
     if (lid.y == 0u && gid.x < dim && gid.z < dim) {
-        column_heights[column] = terrain_height(world_p.xz, seed);
+        terrain_columns[column] = terrain_column(world_p.xz, seed);
     }
     workgroupBarrier();
 
@@ -220,17 +273,17 @@ fn eval_density(@builtin(global_invocation_id) gid: vec3<u32>,
         return;
     }
     densities[density_idx(gid.x, gid.y, gid.z)] =
-        sample_terrain(world_p, column_heights[column], seed).dist;
+        sample_terrain(world_p, terrain_columns[column], seed).dist;
 }
 
 // -----------------------------------------------------------------------------
 // Pass 2: Surface Nets Vertex Placement + Gradient Normals + SDF AO + Biomes
 // -----------------------------------------------------------------------------
-fn compute_normal(p: vec3<f32>, eps: f32, height: f32, seed: f32) -> vec3<f32> {
+fn compute_normal(p: vec3<f32>, eps: f32, column: TerrainColumn, seed: f32) -> vec3<f32> {
     let dx = eval_world_sdf(p + vec3<f32>(eps, 0.0, 0.0)).dist
            - eval_world_sdf(p - vec3<f32>(eps, 0.0, 0.0)).dist;
-    let dy = sample_terrain(p + vec3<f32>(0.0, eps, 0.0), height, seed).dist
-           - sample_terrain(p - vec3<f32>(0.0, eps, 0.0), height, seed).dist;
+    let dy = sample_terrain(p + vec3<f32>(0.0, eps, 0.0), column, seed).dist
+           - sample_terrain(p - vec3<f32>(0.0, eps, 0.0), column, seed).dist;
     let dz = eval_world_sdf(p + vec3<f32>(0.0, 0.0, eps)).dist
            - eval_world_sdf(p - vec3<f32>(0.0, 0.0, eps)).dist;
     let g = vec3<f32>(dx, dy, dz);
@@ -253,7 +306,7 @@ fn compute_ao(p: vec3<f32>, n: vec3<f32>, step: f32) -> f32 {
     return clamp(1.0 - occ * 0.85, 0.18, 1.0);
 }
 
-fn classify_biome(p: vec3<f32>, n: vec3<f32>, cave_factor: f32) -> f32 {
+fn classify_biome(p: vec3<f32>, n: vec3<f32>, cave_factor: f32, river_bank_factor: f32) -> f32 {
     let seed = f32(params.seed % 10000u);
     // Deep cavern with occasional glowing crystal veins
     if (cave_factor > 0.35 || p.y < -14.0) {
@@ -262,6 +315,9 @@ fn classify_biome(p: vec3<f32>, n: vec3<f32>, cave_factor: f32) -> f32 {
             return 5.0; // Bioluminescent crystal vein
         }
         return 0.0; // Cavern basalt
+    }
+    if (river_bank_factor > 0.35 && p.y < -1.5) {
+        return 1.0; // Sandy riverbed and banks
     }
     // Steep cliffs or undersides of overhangs
     if (n.y < 0.58) {
@@ -335,11 +391,11 @@ fn build_vertices(@builtin(global_invocation_id) gid: vec3<u32>) {
     let world_pos = cell_origin + local_pos * params.voxel_size;
 
     let seed = f32(params.seed % 10000u);
-    let height = terrain_height(world_pos.xz, seed);
-    let normal = compute_normal(world_pos, params.voxel_size * 0.45, height, seed);
+    let column = terrain_column(world_pos.xz, seed);
+    let normal = compute_normal(world_pos, params.voxel_size * 0.45, column, seed);
     let ao = compute_ao(world_pos, normal, params.voxel_size);
-    let sample = sample_terrain(world_pos, height, seed);
-    let biome = classify_biome(world_pos, normal, sample.cave_factor);
+    let sample = sample_terrain(world_pos, column, seed);
+    let biome = classify_biome(world_pos, normal, sample.cave_factor, column.river_bank_factor);
 
     let vid = atomicAdd(&counters.vertex_count, 1u);
     if (vid < params.max_vertices) {

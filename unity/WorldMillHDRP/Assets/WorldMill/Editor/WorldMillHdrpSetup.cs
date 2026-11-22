@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 using UnityEngine.SceneManagement;
+using WorldMill.UI;
 
 namespace WorldMill.Editor
 {
@@ -15,6 +16,10 @@ namespace WorldMill.Editor
         [MenuItem("WorldMill/Build HDRP WorldMill Scene")]
         public static void BuildScene()
         {
+            PlayerSettings.colorSpace = ColorSpace.Linear;
+            PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneLinux64, false);
+            PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneLinux64, new[] { GraphicsDeviceType.Vulkan });
+
             Directory.CreateDirectory("Assets/WorldMill/Generated");
             Directory.CreateDirectory("Assets/WorldMill/Textures");
             Directory.CreateDirectory("Assets/Scenes");
@@ -147,10 +152,16 @@ namespace WorldMill.Editor
             var streamer = streamerGo.AddComponent<WorldMillStreamer>();
             streamer.terrainMaterial = terrainMat;
 
-            // Main HDRP Camera with TAA + Fly Explorer Controller
+            // GPU-Instanced Nordic Pine Forests, Meadow Grass, Boulders & Glowing Cave Crystals
+            var foliageGo = new GameObject("WorldMill Foliage System");
+            var foliage = foliageGo.AddComponent<WorldMillFoliageSystem>();
+            foliage.streamer = streamer;
+            foliage.waterLevel = -6.0f;
+
+            // Main HDRP Camera with TAA
             var camGo = new GameObject("Main Camera");
             camGo.tag = "MainCamera";
-            camGo.transform.position = new Vector3(12f, 36f, -48f);
+            camGo.transform.position = new Vector3(12f, 32f, -42f);
             camGo.transform.rotation = Quaternion.Euler(14f, 0f, 0f);
             var cam = camGo.AddComponent<Camera>();
             cam.fieldOfView = 62f;
@@ -159,9 +170,27 @@ namespace WorldMill.Editor
             var hdCam = camGo.AddComponent<HDAdditionalCameraData>();
             hdCam.antialiasing = HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing;
 
-            var fly = camGo.AddComponent<WorldMillFlyCamera>();
-            fly.streamer = streamer;
-            fly.sunLight = sunLight;
+            // Third-Person RPG Adventurer Player
+            var playerGo = new GameObject("Player Adventurer");
+            playerGo.transform.position = new Vector3(12f, 26f, -38f);
+            var player = playerGo.AddComponent<WorldMillPlayerController>();
+            player.streamer = streamer;
+            player.sunLight = sunLight;
+            player.playerCamera = cam;
+
+            // Witcher x Valheim RPG Client (Quests, Lore, Persistent Campfires) & HUD
+            var rpgGo = new GameObject("WorldMill RPG Systems");
+            var rpgClient = rpgGo.AddComponent<WorldMillRpgClient>();
+            rpgClient.streamer = streamer;
+            rpgClient.playerTransform = playerGo.transform;
+
+            var rpgHud = rpgGo.AddComponent<WorldMillRpgHud>();
+            rpgHud.rpgClient = rpgClient;
+            rpgHud.streamer = streamer;
+            rpgHud.playerTransform = playerGo.transform;
+
+            player.rpgClient = rpgClient;
+            player.rpgHud = rpgHud;
 
             AssetDatabase.SaveAssets();
             EditorSceneManager.SaveScene(scene, ScenePath);

@@ -71,6 +71,10 @@ namespace WorldMill
         public int ActiveChunkCount => _chunkObjects.Count;
         public int ActiveTriangleCount { get; private set; }
 
+        public event Action<ChunkCoord, DecodedChunk> OnChunkSpawned;
+        public event Action<ChunkCoord> OnChunkRemoved;
+        public event Action OnWorldCleared;
+
         private readonly Dictionary<ChunkCoord, (GameObject go, Mesh mesh, int tris)> _chunkObjects = new();
         private readonly ConcurrentQueue<DecodedChunk> _incomingChunks = new();
         private readonly ConcurrentQueue<ChunkCoord[]> _incomingEvictions = new();
@@ -204,6 +208,7 @@ namespace WorldMill
 
                 ActiveTriangleCount += chunk.TriangleCount;
                 _chunkObjects[chunk.Coord] = (go, mesh, chunk.TriangleCount);
+                OnChunkSpawned?.Invoke(chunk.Coord, chunk);
                 uploaded++;
             }
         }
@@ -215,6 +220,7 @@ namespace WorldMill
             if (entry.go != null) Destroy(entry.go);
             if (entry.mesh != null) Destroy(entry.mesh);
             _chunkObjects.Remove(coord);
+            OnChunkRemoved?.Invoke(coord);
         }
 
         public void ClearAllChunks()
@@ -227,6 +233,7 @@ namespace WorldMill
             _chunkObjects.Clear();
             ActiveTriangleCount = 0;
             while (_incomingChunks.TryDequeue(out _)) { }
+            OnWorldCleared?.Invoke();
         }
 
         private async Task WebSocketLoop(CancellationToken ct)
