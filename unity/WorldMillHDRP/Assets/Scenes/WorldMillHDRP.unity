@@ -201,6 +201,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldMill.WorldMillFoliageSystem
   streamer: {fileID: 357802575}
   waterLevel: -6
+  maxTreesPerChunk: 14
+  minTreeSpacing: 6.8
+  forestThreshold: 0.55
+  maxGrassPerChunk: 110
 --- !u!4 &641103741
 Transform:
   m_ObjectHideFlags: 0
@@ -1051,6 +1055,7 @@ MonoBehaviour:
   playerCamera: {fileID: 736617816}
   rpgClient: {fileID: 1592637286}
   rpgHud: {fileID: 1592637285}
+  characterModelPrefab: {fileID: 3044158380085915256, guid: d0fcd3523b54dea5b8a7c3210196d3f0, type: 3}
   walkSpeed: 7.5
   sprintSpeed: 14.5
   swimSpeed: 6.2

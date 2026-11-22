@@ -15,6 +15,12 @@ namespace WorldMill
         public WorldMillStreamer streamer;
         public float waterLevel = -6.0f;
 
+        [Header("Forest & Meadow Density")]
+        [Range(0, 40)] public int maxTreesPerChunk = 14;
+        [Range(3f, 14f)] public float minTreeSpacing = 6.8f;
+        [Range(0.2f, 0.85f)] public float forestThreshold = 0.55f;
+        [Range(0, 200)] public int maxGrassPerChunk = 110;
+
         public int TotalTrees => _allTrunks.Count;
         public int TotalGrass => _allGrass.Count;
         public int TotalBoulders => _allBoulders.Count;
@@ -96,6 +102,8 @@ namespace WorldMill
             if (coord.Lod != 0 || chunk.IsEmpty) return;
 
             var inst = new ChunkInstances();
+            var placedTreePositions = new List<Vector3>(maxTreesPerChunk);
+            float minSpacingSq = minTreeSpacing * minTreeSpacing;
             var pos = chunk.Positions;
             var norm = chunk.Normals;
             var col = chunk.LayerColors;
@@ -114,29 +122,42 @@ namespace WorldMill
                 float r1 = ((h >> 16) & 0xFFFFu) / 65535f;
                 float yaw = r1 * 360f;
 
-                // 1. Dense Nordic Pine Forests on walkable grassy highlands above river/water level
-                if (p.y > waterLevel + 1.4f && p.y < 30f && n.y > 0.74f && c.r > 0.48f)
+                // 1. Scenic spaced Nordic Pine groves + wide open sunlit meadows
+                if (p.y > waterLevel + 2.0f && p.y < 28f && n.y > 0.78f && c.r > 0.52f)
                 {
-                    // Coherent grove mask creates realistic forests + scenic meadows
-                    float grove = Mathf.PerlinNoise(p.x * 0.032f + seed * 0.13f, p.z * 0.032f + seed * 0.27f);
-                    float treeChance = grove > 0.44f ? 0.11f : 0.015f;
-                    if (r0 < treeChance && inst.Trunks.Count < 85)
+                    // Coherent grove mask: open meadows + natural forest pockets
+                    float grove = Mathf.PerlinNoise(p.x * 0.022f + seed * 0.13f, p.z * 0.022f + seed * 0.27f);
+                    float treeChance = grove > forestThreshold ? 0.035f : 0.003f;
+                    if (r0 < treeChance && inst.Trunks.Count < maxTreesPerChunk)
                     {
-                        float s = Mathf.Lerp(0.85f, 1.85f, r1);
-                        float hScale = s * Mathf.Lerp(0.9f, 1.35f, ((h >> 8) & 0xFFu) / 255f);
-                        var tilt = Quaternion.Euler((r0 - 0.05f) * 40f, yaw, (r1 - 0.5f) * 5f);
-                        var mat = Matrix4x4.TRS(p - new Vector3(0f, 0.25f, 0f), tilt, new Vector3(s, hScale, s));
-                        inst.Trunks.Add(mat);
-                        inst.Canopies.Add(mat);
-                        continue;
+                        bool tooClose = false;
+                        for (int k = 0; k < placedTreePositions.Count; k++)
+                        {
+                            if ((placedTreePositions[k] - p).sqrMagnitude < minSpacingSq)
+                            {
+                                tooClose = true;
+                                break;
+                            }
+                        }
+                        if (!tooClose)
+                        {
+                            placedTreePositions.Add(p);
+                            float s = Mathf.Lerp(0.85f, 1.55f, r1);
+                            float hScale = s * Mathf.Lerp(0.95f, 1.30f, ((h >> 8) & 0xFFu) / 255f);
+                            var tilt = Quaternion.Euler((r0 - 0.015f) * 28f, yaw, (r1 - 0.5f) * 4f);
+                            var mat = Matrix4x4.TRS(p - new Vector3(0f, 0.25f, 0f), tilt, new Vector3(s, hScale, s));
+                            inst.Trunks.Add(mat);
+                            inst.Canopies.Add(mat);
+                            continue;
+                        }
                     }
 
-                    // Lush meadow grass tufts
-                    if (r0 < 0.42f && inst.Grass.Count < 280)
+                    // Meadow grass tufts
+                    if (r0 < 0.22f && inst.Grass.Count < maxGrassPerChunk)
                     {
-                        float gs = Mathf.Lerp(0.75f, 1.45f, r1);
+                        float gs = Mathf.Lerp(0.70f, 1.30f, r1);
                         var align = Quaternion.FromToRotation(Vector3.up, n) * Quaternion.Euler(0f, yaw, 0f);
-                        inst.Grass.Add(Matrix4x4.TRS(p - new Vector3(0f, 0.06f, 0f), align, new Vector3(gs, gs * 1.15f, gs)));
+                        inst.Grass.Add(Matrix4x4.TRS(p - new Vector3(0f, 0.06f, 0f), align, new Vector3(gs, gs * 1.1f, gs)));
                     }
                 }
                 // 2. Mossy boulders on rocky slopes & riverbanks

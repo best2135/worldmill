@@ -22,6 +22,7 @@ namespace WorldMill
         public Camera playerCamera;
         public WorldMillRpgClient rpgClient;
         public WorldMillRpgHud rpgHud;
+        public GameObject characterModelPrefab;
 
         [Header("Movement & Physics")]
         public float walkSpeed = 7.5f;
@@ -55,6 +56,7 @@ namespace WorldMill
         private CharacterController _cc;
         private HDAdditionalLightData _hdSun;
         private Transform _avatarRoot;
+        private Animator _animator;
         private Transform _leftLeg;
         private Transform _rightLeg;
         private Transform _torchObj;
@@ -67,6 +69,7 @@ namespace WorldMill
         private float _rollTimer = 0f;
         private Vector3 _rollDir;
         private float _walkCycle = 0f;
+        private float _currentHorizSpeed = 0f;
 
         private void Awake()
         {
@@ -80,7 +83,11 @@ namespace WorldMill
                 _cc.stepOffset = 0.55f;
                 _cc.slopeLimit = 52f;
             }
-            BuildStylizedAdventurerAvatar();
+
+            if (characterModelPrefab != null)
+                SpawnRiggedCharacter();
+            else
+                BuildStylizedAdventurerAvatar();
         }
 
         private void Start()
@@ -206,10 +213,16 @@ namespace WorldMill
 
         private void HandleCameraLook(float dt)
         {
-            if (Input.GetMouseButton(1) || Input.GetMouseButton(0))
+            // Right-mouse drag orbits camera (Left-click swings greatsword when using rigged character!)
+            if (Input.GetMouseButton(1) || (characterModelPrefab == null && Input.GetMouseButton(0)))
             {
                 _yaw += Input.GetAxis("Mouse X") * mouseSensitivity;
                 _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * mouseSensitivity, -75f, 80f);
+            }
+            if (Input.GetMouseButtonDown(0) && !IsFlyMode && _animator != null && CurrentStamina >= 12f)
+            {
+                CurrentStamina = Mathf.Max(0f, CurrentStamina - 12f);
+                _animator.SetTrigger("Attack");
             }
             float scroll = Input.mouseScrollDelta.y;
             if (Mathf.Abs(scroll) > 0.01f && !IsFlyMode)
@@ -258,6 +271,7 @@ namespace WorldMill
                 _rollTimer = 0.36f;
                 _rollDir = moveDir.sqrMagnitude > 0.01f ? moveDir : transform.forward;
                 CurrentStamina = Mathf.Max(0f, CurrentStamina - 22f);
+                if (_animator != null) _animator.SetTrigger("Roll");
             }
 
             bool wantsSprint = (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.F)) && moveDir.sqrMagnitude > 0.01f && CurrentStamina > 2f;
@@ -303,14 +317,16 @@ namespace WorldMill
                 {
                     _verticalVel = jumpForce;
                     CurrentStamina = Mathf.Max(0f, CurrentStamina - 10f);
+                    if (_animator != null) _animator.SetTrigger("Jump");
                 }
                 _verticalVel -= gravity * dt;
             }
 
             Vector3 motion = (horiz + Vector3.up * _verticalVel) * dt;
             _cc.Move(motion);
+            _currentHorizSpeed = new Vector2(horiz.x, horiz.z).magnitude;
 
-            // Smoothly rotate character toward movement direction + procedural walk/swim animation
+            // Smoothly rotate character toward movement direction + drive skeletal Animator or fallback
             if (horiz.sqrMagnitude > 0.05f)
             {
                 Quaternion targetRot = Quaternion.LookRotation(new Vector3(horiz.x, 0f, horiz.z).normalized, Vector3.up);
@@ -327,12 +343,61 @@ namespace WorldMill
 
         private void AnimateAvatar()
         {
+            if (_animator != null)
+            {
+                _animator.SetFloat("Speed", _currentHorizSpeed);
+                _animator.SetBool("IsGrounded", _cc.isGrounded);
+                _animator.SetBool("IsSwimming", IsSwimming);
+                return;
+            }
             if (_avatarRoot == null) return;
             float swing = Mathf.Sin(_walkCycle) * 28f;
             if (_leftLeg != null) _leftLeg.localRotation = Quaternion.Euler(swing, 0f, 0f);
             if (_rightLeg != null) _rightLeg.localRotation = Quaternion.Euler(-swing, 0f, 0f);
             float pitchTilt = _rollTimer > 0f ? 42f : (IsSwimming ? 24f : 0f);
             _avatarRoot.localRotation = Quaternion.Euler(pitchTilt, 0f, 0f);
+        }
+
+        private void SpawnRiggedCharacter()
+        {
+            var inst = Instantiate(characterModelPrefab, transform);
+            inst.name = "RiggedHero";
+            inst.transform.localPosition = Vector3.zero;
+            inst.transform.localRotation = Quaternion.identity;
+            _avatarRoot = inst.transform;
+            _animator = inst.GetComponentInChildren<Animator>();
+
+            // Attach toggleable HDRP torch light near shoulder/hand
+            var lit = Shader.Find("HDRP/Lit");
+            _torchObj = new GameObject("HandheldTorch").transform;
+            _torchObj.SetParent(_avatarRoot, false);
+            _torchObj.localPosition = new Vector3(0.45f, 1.45f, 0.35f);
+            if (lit != null)
+            {
+                var flameMat = new Material(lit);
+                flameMat.SetColor("_BaseColor", new Color(1.0f, 0.55f, 0.15f));
+                flameMat.SetColor("_EmissiveColor", new Color(4.5f, 1.8f, 0.35f));
+                flameMat.SetColor("_EmissiveColorLDR", new Color(4.5f, 1.8f, 0.35f));
+                flameMat.SetFloat("_UseEmissiveIntensity", 1f);
+                flameMat.SetFloat("_EmissiveIntensity", 8f);
+                HDMaterial.ValidateMaterial(flameMat);
+
+                var orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                Destroy(orb.GetComponent<Collider>());
+                orb.transform.SetParent(_torchObj, false);
+                orb.transform.localScale = Vector3.one * 0.16f;
+                orb.GetComponent<MeshRenderer>().sharedMaterial = flameMat;
+            }
+            var lightGo = new GameObject("TorchHDRPLight");
+            lightGo.transform.SetParent(_torchObj, false);
+            _torchLight = lightGo.AddComponent<Light>();
+            _torchLight.type = LightType.Point;
+            _torchLight.color = new Color(1.0f, 0.62f, 0.24f);
+            _torchLight.range = 24f;
+            _hdTorch = lightGo.AddComponent<HDAdditionalLightData>();
+            _hdTorch.SetIntensity(650f, LightUnit.Lumen);
+            _hdTorch.EnableShadows(true);
+            _torchObj.gameObject.SetActive(TorchLit);
         }
 
         private void UpdateCameraTransform()
