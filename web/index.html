@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WorldMill — Rust + WebGPU Infinite 3D World</title>
+  </head>
+  <body>
+    <canvas id="gpu-canvas"></canvas>
+
+    <aside class="hud">
+      <div class="hud-header">
+        <div class="brand">
+          <span class="dot" id="conn-dot"></span>
+          <h1>WorldMill</h1>
+        </div>
+        <span class="badge" id="fps-badge">-- FPS</span>
+      </div>
+
+      <div class="gpu-line" id="gpu-adapter">Connecting to Rust wgpu backend...</div>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="label">Chunks</span>
+          <strong id="m-chunks">0</strong>
+        </div>
+        <div class="metric">
+          <span class="label">Triangles</span>
+          <strong id="m-tris">0</strong>
+        </div>
+        <div class="metric">
+          <span class="label">GPU Bake</span>
+          <strong id="m-bake">-- ms</strong>
+        </div>
+        <div class="metric">
+          <span class="label">Cache Hits</span>
+          <strong id="m-hits">0</strong>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="row">
+          <label for="seed-input">World Seed</label>
+          <input id="seed-input" type="number" value="42" min="1" max="999999" />
+          <button id="btn-seed">Load</button>
+        </div>
+        <div class="row">
+          <button id="btn-batch" class="primary">Batch Bake Region (GPU)</button>
+          <button id="btn-lod-tint">LOD Tint</button>
+        </div>
+        <div class="batch-status" id="batch-status"></div>
+      </div>
+
+      <div class="pos-line" id="pos-line">Pos: 0, 0, 0</div>
+      <div class="help">
+        <strong>Drag</strong> or <strong>Click</strong> to look · <strong>WASD</strong> fly ·
+        <strong>Space/Shift</strong> up/down · <strong>F</strong> fast boost
+      </div>
+    </aside>
+
+    <div id="webgpu-error" class="error-overlay hidden"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

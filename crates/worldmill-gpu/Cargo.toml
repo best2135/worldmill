@@ -1,0 +1,12 @@
+[package]
+name = "worldmill-gpu"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bytemuck.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+wgpu.workspace = true
+worldmill-core = { path = "../worldmill-core" }

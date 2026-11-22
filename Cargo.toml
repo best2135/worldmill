@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/worldmill-core",
+    "crates/worldmill-gpu",
+    "crates/worldmill-server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+anyhow = "1.0"
+axum = { version = "0.8", features = ["ws"] }
+bytemuck = { version = "1.21", features = ["derive"] }
+dashmap = "6.1"
+futures-util = "0.3"
+glam = { version = "0.29", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.43", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+wgpu = "24.0"
+zstd = "0.13"
