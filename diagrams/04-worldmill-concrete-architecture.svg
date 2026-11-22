@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 770" width="1340" height="770" role="img" aria-label="04-worldmill-concrete-architecture">
+<defs>
+  <style>
+    .title-main { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 700; fill: #18181b; }
+    .title-sub  { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 400; fill: #52525b; }
+    .zone-title { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 700; letter-spacing: 0.025em; }
+    .node-title { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 700; fill: #18181b; }
+    .node-sub   { font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace; font-weight: 400; fill: #3f3f46; }
+    .arr-label  { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 600; }
+  </style>
+  <filter id="cardShadow" x="-4%" y="-6%" width="108%" height="116%">
+    <feDropShadow dx="0" dy="2" stdDeviation="2.2" flood-color="#0f172a" flood-opacity="0.07"/>
+  </filter>
+  <pattern id="dotgrid" width="24" height="24" patternUnits="userSpaceOnUse">
+    <circle cx="2" cy="2" r="0.85" fill="#e4e4e7"/>
+  </pattern>
+</defs>
+<rect x="0" y="0" width="1340" height="770" rx="12" fill="#ffffff"/>
+<rect x="0" y="0" width="1340" height="770" rx="12" fill="url(#dotgrid)"/>
+<defs>
+  <marker id="ah_0" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse"><path d="M 1 1.5 L 10.5 5 L 1 8.5 z" fill="#1971c2"/></marker>
+  <marker id="ah_1" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse"><path d="M 1 1.5 L 10.5 5 L 1 8.5 z" fill="#2b8a3e"/></marker>
+  <marker id="ah_2" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse"><path d="M 1 1.5 L 10.5 5 L 1 8.5 z" fill="#495057"/></marker>
+  <marker id="ah_3" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse"><path d="M 1 1.5 L 10.5 5 L 1 8.5 z" fill="#6741d9"/></marker>
+  <marker id="ah_4" viewBox="0 0 12 10" refX="10" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse"><path d="M 1 1.5 L 10.5 5 L 1 8.5 z" fill="#d9480f"/></marker>
+</defs>
+<rect x="30" y="108" width="280" height="456" rx="12" fill="#e7f5ff" stroke="#1971c2" stroke-width="1.8" stroke-dasharray="7 5" opacity="0.95"/>
+<rect x="350" y="108" width="345" height="456" rx="12" fill="#fff4e6" stroke="#d9480f" stroke-width="1.8" stroke-dasharray="7 5" opacity="0.95"/>
+<rect x="735" y="108" width="575" height="456" rx="12" fill="#ebfbee" stroke="#2b8a3e" stroke-width="1.8" stroke-dasharray="7 5" opacity="0.95"/>
+<rect x="30" y="594" width="1280" height="144" rx="12" fill="#f8f9fa" stroke="#495057" stroke-width="1.8" stroke-dasharray="7 5" opacity="0.95"/>
+<text x="30.0" y="37.0" font-size="21" text-anchor="start" fill="#18181b" class="title-main">WorldMill — Concrete System Architecture (Rust + Headless wgpu + Browser WebGPU)</text>
+<text x="30.0" y="59.0" font-size="13" text-anchor="start" fill="#52525b" class="title-sub">Infinite procedural 3D terrain (mountains, overhangs, sky arches, crystal caves) baked on RTX 4070 Ti SUPER &amp; streamed live to WebGPU</text>
+<text x="44.0" y="131.0" font-size="13" text-anchor="start" fill="#1971c2" class="zone-title">WEBGPU CLIENT (web/)</text>
+<text x="364.0" y="131.0" font-size="13" text-anchor="start" fill="#d9480f" class="zone-title">RUST BACKEND (worldmill-server)</text>
+<text x="749.0" y="131.0" font-size="13" text-anchor="start" fill="#2b8a3e" class="zone-title">HEADLESS WGPU WORKERS (worldmill-gpu)</text>
+<text x="44.0" y="617.0" font-size="13" text-anchor="start" fill="#495057" class="zone-title">SHARED CORE &amp; PERSISTENT STORAGE</text>
+<text x="1022.5" y="537.5" font-size="11.5" text-anchor="middle" fill="#2b8a3e" class="title-sub">All 3 passes live in crates/worldmill-gpu/shaders/surface_nets.wgsl</text>
+<g filter="url(#cardShadow)"><rect x="48" y="152" width="244" height="106" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 52.0 153.5 L 52.0 256.5" stroke="#1971c2" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 56.8 152.0 L 283.5 152.6 Q 292.4 152.4 291.5 160.5 L 291.5 249.4 Q 291.8 257.6 282.6 257.6 L 57.5 257.9 Q 48.1 258.5 48.1 249.1 L 48.5 161.0 Q 48.2 152.5 56.9 151.5 Z" fill="none" stroke="#1971c2" stroke-width="2"/>
+<path d="M 57.3 151.6 L 282.9 151.7 Q 292.2 151.7 291.6 161.3 L 291.9 248.9 Q 292.0 258.0 282.8 258.0 L 56.8 257.6 Q 47.8 257.8 48.4 249.0 L 48.1 160.6 Q 47.9 151.7 57.0 152.1 Z" fill="none" stroke="#1971c2" stroke-width="0.9" opacity="0.35"/>
+<text x="172.0" y="181.1" font-size="14" text-anchor="middle" class="node-title">WebGPU Renderer (renderer.ts)</text>
+<text x="172.0" y="204.0" font-size="11.2" text-anchor="middle" class="node-sub">1. Procedural Sky Dome</text>
+<text x="172.0" y="219.9" font-size="11.2" text-anchor="middle" class="node-sub">2. Streamed Terrain (PBR+AO+Fog)</text>
+<text x="172.0" y="235.8" font-size="11.2" text-anchor="middle" class="node-sub">3. Animated Fresnel Water (y=-6)</text>
+<g filter="url(#cardShadow)"><rect x="48" y="286" width="244" height="96" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 52.0 287.5 L 52.0 380.5" stroke="#1971c2" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 57.6 285.9 L 282.5 286.1 Q 292.2 285.6 291.6 295.4 L 292.5 373.1 Q 292.4 382.3 283.4 382.4 L 56.8 382.5 Q 47.6 382.6 47.7 372.8 L 48.4 295.1 Q 48.0 286.2 57.3 286.4 Z" fill="none" stroke="#1971c2" stroke-width="2"/>
+<path d="M 57.3 286.3 L 282.9 286.0 Q 292.2 286.3 291.7 295.0 L 292.2 373.4 Q 291.8 381.6 283.1 382.3 L 57.0 381.8 Q 48.4 381.8 48.0 372.8 L 47.7 294.9 Q 47.9 285.7 57.0 285.9 Z" fill="none" stroke="#1971c2" stroke-width="0.9" opacity="0.35"/>
+<text x="172.0" y="318.0" font-size="14" text-anchor="middle" class="node-title">GPU Chunk Buffer Cache</text>
+<text x="172.0" y="341.0" font-size="11.2" text-anchor="middle" class="node-sub">Zero-Copy WML1 -&gt; GPUBuffer</text>
+<text x="172.0" y="356.9" font-size="11.2" text-anchor="middle" class="node-sub">Destroys Buffers on Evict</text>
+<g filter="url(#cardShadow)"><rect x="48" y="412" width="244" height="104" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 52.0 413.5 L 52.0 514.5" stroke="#1971c2" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 57.1 412.2 L 283.0 412.1 Q 291.4 412.0 292.4 420.6 L 292.1 506.9 Q 292.1 515.5 283.4 515.4 L 56.5 516.1 Q 47.8 516.3 47.9 506.8 L 47.9 420.9 Q 48.0 411.6 57.3 412.1 Z" fill="none" stroke="#1971c2" stroke-width="2"/>
+<path d="M 57.1 412.4 L 282.8 412.3 Q 292.2 412.4 292.1 420.9 L 291.8 506.7 Q 291.8 515.7 282.7 515.7 L 57.1 515.6 Q 47.6 515.9 47.8 507.0 L 48.3 420.9 Q 47.9 411.9 57.2 412.1 Z" fill="none" stroke="#1971c2" stroke-width="0.9" opacity="0.35"/>
+<text x="172.0" y="448.0" font-size="14" text-anchor="middle" class="node-title">Explorer &amp; Minimap (main.ts)</text>
+<text x="172.0" y="471.0" font-size="11.2" text-anchor="middle" class="node-sub">WASD Fly • Presets • Sun Slider</text>
+<text x="172.0" y="486.9" font-size="11.2" text-anchor="middle" class="node-sub">Live 2D Spatial Chunk Minimap</text>
+<g filter="url(#cardShadow)"><rect x="370" y="152" width="305" height="106" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 374.0 153.5 L 374.0 256.5" stroke="#d9480f" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 378.6 151.7 L 666.3 152.1 Q 675.5 151.8 674.9 161.1 L 674.6 249.3 Q 675.6 257.7 665.9 257.7 L 378.4 257.5 Q 370.2 257.9 370.2 248.8 L 370.5 160.6 Q 369.7 152.5 379.2 152.0 Z" fill="none" stroke="#d9480f" stroke-width="2"/>
+<path d="M 378.9 152.1 L 665.7 151.7 Q 674.8 151.8 675.0 161.3 L 674.9 249.2 Q 675.1 257.8 666.3 258.0 L 378.8 258.1 Q 370.3 257.8 370.1 249.0 L 370.1 161.0 Q 369.9 151.8 378.7 151.7 Z" fill="none" stroke="#d9480f" stroke-width="0.9" opacity="0.35"/>
+<text x="524.5" y="181.1" font-size="14" text-anchor="middle" class="node-title">Axum HTTP + WS Gateway (:8080)</text>
+<text x="524.5" y="204.0" font-size="11.2" text-anchor="middle" class="node-sub">WS /ws (Binary WML1 + Telemetry)</text>
+<text x="524.5" y="219.9" font-size="11.2" text-anchor="middle" class="node-sub">POST/GET/DEL /api/batch/jobs</text>
+<text x="524.5" y="235.8" font-size="11.2" text-anchor="middle" class="node-sub">GET /api/stats • Static web/dist</text>
+<g filter="url(#cardShadow)"><rect x="370" y="286" width="305" height="108" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 374.0 287.5 L 374.0 392.5" stroke="#d9480f" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 378.8 286.3 L 665.4 286.4 Q 674.4 285.5 675.0 294.6 L 674.5 385.4 Q 674.8 394.4 665.5 394.4 L 378.6 394.0 Q 370.3 393.7 369.5 385.6 L 369.9 294.7 Q 370.1 286.3 378.5 285.6 Z" fill="none" stroke="#d9480f" stroke-width="2"/>
+<path d="M 378.8 286.1 L 665.6 285.7 Q 675.0 286.3 674.7 295.4 L 674.7 385.0 Q 675.0 393.9 665.8 393.7 L 378.8 393.6 Q 370.1 394.2 370.2 385.3 L 369.9 295.1 Q 369.9 285.6 379.3 285.9 Z" fill="none" stroke="#d9480f" stroke-width="0.9" opacity="0.35"/>
+<text x="524.5" y="316.1" font-size="14" text-anchor="middle" class="node-title">Spatial Streamer &amp; Batch Queue</text>
+<text x="524.5" y="339.0" font-size="11.2" text-anchor="middle" class="node-sub">watch::channel Pose Coalescer</text>
+<text x="524.5" y="354.9" font-size="11.2" text-anchor="middle" class="node-sub">Frustum + LOD0/1 Priority Order</text>
+<text x="524.5" y="370.8" font-size="11.2" text-anchor="middle" class="node-sub">Cancel Stale Work • Batch Semaphore</text>
+<g filter="url(#cardShadow)"><rect x="370" y="422" width="305" height="104" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 374.0 423.5 L 374.0 524.5" stroke="#d9480f" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 379.3 421.8 L 665.7 421.5 Q 675.3 421.8 674.8 430.6 L 674.4 517.5 Q 675.0 525.9 666.4 526.4 L 379.1 525.8 Q 369.9 526.5 369.5 517.6 L 369.6 430.9 Q 370.3 421.5 378.4 421.6 Z" fill="none" stroke="#d9480f" stroke-width="2"/>
+<path d="M 378.7 421.9 L 665.8 421.7 Q 674.7 422.1 675.3 430.9 L 674.6 516.9 Q 674.9 525.6 666.3 525.9 L 379.1 525.7 Q 370.3 526.4 370.1 517.1 L 370.4 431.2 Q 369.9 422.0 379.0 421.8 Z" fill="none" stroke="#d9480f" stroke-width="0.9" opacity="0.35"/>
+<text x="524.5" y="450.1" font-size="14" text-anchor="middle" class="node-title">Single-Flight + Bounded LRU</text>
+<text x="524.5" y="473.0" font-size="11.2" text-anchor="middle" class="node-sub">Dedupes Identical In-Flight Bakes</text>
+<text x="524.5" y="488.9" font-size="11.2" text-anchor="middle" class="node-sub">Bounded RAM Cache (LRU Evict)</text>
+<text x="524.5" y="504.8" font-size="11.2" text-anchor="middle" class="node-sub">Async NVMe Disk Cache Lookup</text>
+<g filter="url(#cardShadow)"><rect x="755" y="150" width="535" height="68" rx="9" fill="#d3f9d8" stroke="none"/></g>
+<path d="M 759.0 151.5 L 759.0 216.5" stroke="#2b8a3e" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 764.2 149.9 L 1281.4 149.6 Q 1290.0 150.5 1289.5 159.6 L 1290.2 209.2 Q 1289.9 217.6 1281.3 218.4 L 763.7 217.8 Q 755.5 218.2 755.3 209.4 L 755.0 159.3 Q 755.4 150.6 763.9 150.0 Z" fill="none" stroke="#2b8a3e" stroke-width="2"/>
+<path d="M 764.0 150.2 L 1280.6 150.4 Q 1289.7 149.7 1290.3 159.2 L 1289.9 209.4 Q 1289.7 218.3 1280.8 218.3 L 763.7 218.4 Q 754.7 218.4 755.2 208.8 L 755.2 159.3 Q 754.9 150.1 764.0 150.3 Z" fill="none" stroke="#2b8a3e" stroke-width="0.9" opacity="0.35"/>
+<text x="1024.5" y="176.0" font-size="14" text-anchor="middle" class="node-title">Multi-Slot Pre-Allocated VRAM Pool (4 Concurrent Workers)</text>
+<text x="1024.5" y="198.9" font-size="11.2" text-anchor="middle" class="node-sub">Zero Per-Chunk GPU Allocations • Async Free-Slot Queue</text>
+<g filter="url(#cardShadow)"><rect x="755" y="248" width="166" height="134" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 759.0 249.5 L 759.0 380.5" stroke="#2b8a3e" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 764.0 247.4 L 911.6 248.6 Q 921.4 248.2 921.0 256.4 L 921.3 373.2 Q 921.5 381.6 911.6 382.3 L 763.9 382.2 Q 755.0 382.2 755.4 373.5 L 755.4 256.9 Q 754.7 248.5 763.6 248.0 Z" fill="none" stroke="#2b8a3e" stroke-width="2"/>
+<path d="M 764.3 248.0 L 911.9 248.2 Q 920.7 248.1 920.8 256.9 L 920.8 373.0 Q 920.6 381.9 912.4 381.6 L 764.2 382.3 Q 754.9 382.4 755.0 372.8 L 755.1 257.4 Q 754.7 248.2 764.2 248.3 Z" fill="none" stroke="#2b8a3e" stroke-width="0.9" opacity="0.35"/>
+<text x="840.0" y="291.1" font-size="14" text-anchor="middle" class="node-title">Pass 1: eval_density</text>
+<text x="840.0" y="314.0" font-size="11.2" text-anchor="middle" class="node-sub">26x26x26 SDF Grid</text>
+<text x="840.0" y="329.9" font-size="11.2" text-anchor="middle" class="node-sub">Mountains, Overhangs</text>
+<text x="840.0" y="345.8" font-size="11.2" text-anchor="middle" class="node-sub">Sky Arches &amp; Caves</text>
+<g filter="url(#cardShadow)"><rect x="940" y="248" width="166" height="134" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 944.0 249.5 L 944.0 380.5" stroke="#2b8a3e" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 949.0 247.7 L 1096.6 247.5 Q 1106.3 248.3 1106.4 257.0 L 1106.5 372.4 Q 1105.9 381.6 1096.8 381.7 L 949.1 382.3 Q 940.3 382.0 939.9 373.0 L 939.9 257.5 Q 940.3 248.2 949.0 247.9 Z" fill="none" stroke="#2b8a3e" stroke-width="2"/>
+<path d="M 948.9 247.7 L 1097.4 247.7 Q 1105.9 247.9 1105.7 256.9 L 1105.8 373.0 Q 1105.9 382.2 1097.1 381.8 L 948.6 381.8 Q 940.1 381.9 940.1 373.1 L 939.7 256.8 Q 940.2 247.7 948.6 248.3 Z" fill="none" stroke="#2b8a3e" stroke-width="0.9" opacity="0.35"/>
+<text x="1025.0" y="291.1" font-size="14" text-anchor="middle" class="node-title">Pass 2: build_verts</text>
+<text x="1025.0" y="314.0" font-size="11.2" text-anchor="middle" class="node-sub">25x25x25 Surface Nets</text>
+<text x="1025.0" y="329.9" font-size="11.2" text-anchor="middle" class="node-sub">Grad Normals + 3-Tap AO</text>
+<text x="1025.0" y="345.8" font-size="11.2" text-anchor="middle" class="node-sub">Biomes (0..5)</text>
+<g filter="url(#cardShadow)"><rect x="1124" y="248" width="166" height="134" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 1128.0 249.5 L 1128.0 380.5" stroke="#2b8a3e" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 1133.3 248.5 L 1280.7 247.8 Q 1290.5 248.3 1289.9 257.4 L 1290.0 372.7 Q 1290.3 382.3 1281.4 381.7 L 1132.7 381.5 Q 1124.3 381.9 1123.7 372.6 L 1123.7 257.1 Q 1123.7 247.8 1133.1 248.5 Z" fill="none" stroke="#2b8a3e" stroke-width="2"/>
+<path d="M 1133.3 247.8 L 1280.6 248.3 Q 1289.8 248.3 1290.3 256.8 L 1289.9 373.0 Q 1290.3 381.8 1280.7 381.7 L 1132.6 382.2 Q 1123.6 381.9 1124.3 373.2 L 1124.0 257.4 Q 1123.6 247.7 1133.2 247.6 Z" fill="none" stroke="#2b8a3e" stroke-width="0.9" opacity="0.35"/>
+<text x="1209.0" y="291.1" font-size="14" text-anchor="middle" class="node-title">Pass 3: emit_indices</text>
+<text x="1209.0" y="314.0" font-size="11.2" text-anchor="middle" class="node-sub">Seam-Free Quads</text>
+<text x="1209.0" y="329.9" font-size="11.2" text-anchor="middle" class="node-sub">Outward CCW Winding</text>
+<text x="1209.0" y="345.8" font-size="11.2" text-anchor="middle" class="node-sub">Exact DMA Readback</text>
+<g filter="url(#cardShadow)"><rect x="755" y="422" width="535" height="86" rx="9" fill="#d3f9d8" stroke="none"/></g>
+<path d="M 759.0 423.5 L 759.0 506.5" stroke="#2b8a3e" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 763.8 421.8 L 1281.2 421.9 Q 1289.9 421.8 1290.4 430.4 L 1290.1 499.4 Q 1289.7 508.1 1280.6 507.7 L 763.6 507.9 Q 755.4 508.4 755.3 498.5 L 755.4 431.4 Q 755.0 422.2 763.6 422.2 Z" fill="none" stroke="#2b8a3e" stroke-width="2"/>
+<path d="M 763.7 422.2 L 1280.9 421.8 Q 1290.2 422.4 1290.1 430.8 L 1290.2 498.9 Q 1290.1 508.2 1281.2 507.9 L 763.8 508.3 Q 755.2 508.1 754.7 498.7 L 755.1 431.2 Q 755.1 422.2 764.1 422.1 Z" fill="none" stroke="#2b8a3e" stroke-width="0.9" opacity="0.35"/>
+<text x="1024.5" y="457.0" font-size="14" text-anchor="middle" class="node-title">NVIDIA GeForce RTX 4070 Ti SUPER (16GB VRAM • Vulkan)</text>
+<text x="1024.5" y="479.9" font-size="11.2" text-anchor="middle" class="node-sub">Headless Compute Queue • Fast Empty-Chunk Short-Circuit</text>
+<g filter="url(#cardShadow)"><rect x="52" y="634" width="585" height="84" rx="9" fill="#edf2ff" stroke="none"/></g>
+<path d="M 56.0 635.5 L 56.0 716.5" stroke="#3b5bdb" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 60.7 633.8 L 628.3 634.6 Q 637.4 634.4 637.2 642.5 L 636.9 708.9 Q 637.0 718.0 628.2 718.1 L 61.2 717.7 Q 51.7 717.5 51.8 708.6 L 52.1 642.7 Q 51.6 634.5 61.2 633.6 Z" fill="none" stroke="#3b5bdb" stroke-width="2"/>
+<path d="M 61.0 634.2 L 627.9 633.9 Q 636.8 634.1 636.7 642.7 L 636.6 708.7 Q 636.9 717.8 628.4 717.8 L 61.1 717.8 Q 52.2 718.1 51.8 708.8 L 52.1 642.7 Q 52.4 633.7 61.2 633.8 Z" fill="none" stroke="#3b5bdb" stroke-width="0.9" opacity="0.35"/>
+<text x="346.5" y="660.0" font-size="14" text-anchor="middle" class="node-title">worldmill-core (Shared Types &amp; Math)</text>
+<text x="346.5" y="683.0" font-size="11.2" text-anchor="middle" class="node-sub">ChunkCoord (24^3 cells: LOD0=24m, LOD1=48m)</text>
+<text x="346.5" y="698.9" font-size="11.2" text-anchor="middle" class="node-sub">32B Vertex [pos, ao, normal, biome] • 40B WML1 Header</text>
+<g filter="url(#cardShadow)"><rect x="672" y="634" width="616" height="84" rx="9" fill="#ffffff" stroke="none"/></g>
+<path d="M 676.0 635.5 L 676.0 716.5" stroke="#495057" stroke-width="3.5" stroke-linecap="round" opacity="0.85"/>
+<path d="M 681.4 634.4 L 1279.2 633.6 Q 1288.1 633.4 1288.1 642.5 L 1288.0 708.8 Q 1287.5 718.2 1278.4 717.4 L 681.3 718.5 Q 672.3 717.9 672.2 709.2 L 671.8 643.2 Q 672.0 633.7 680.6 634.4 Z" fill="none" stroke="#495057" stroke-width="2"/>
+<path d="M 681.2 633.9 L 1279.1 634.0 Q 1287.9 634.1 1288.2 642.7 L 1288.3 708.9 Q 1288.3 717.9 1278.9 717.9 L 680.8 718.0 Q 672.1 718.1 672.3 708.9 L 671.8 642.6 Q 672.2 634.2 681.1 633.8 Z" fill="none" stroke="#495057" stroke-width="0.9" opacity="0.35"/>
+<text x="982.0" y="660.0" font-size="14" text-anchor="middle" class="node-title">NVMe Zstd Disk Cache (.worldmill-cache/)</text>
+<text x="982.0" y="683.0" font-size="11.2" text-anchor="middle" class="node-sub">Content-Addressed Compressed Chunks: s{seed}_l{lod}_{cx}_{cy}_{cz}.wml.zst</text>
+<text x="982.0" y="698.9" font-size="11.2" text-anchor="middle" class="node-sub">Instant Reload Across Restarts &amp; Batch Region Pre-Baking</text>
+<path d="M 632.5 148.0 L 632.1 96.0 Q 632.0 86.0 622.0 86.0 L 276.0 86.0 Q 266.0 86.0 266.0 96.0 L 266.0 148.0" fill="none" stroke="#6741d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ah_3)"/>
+<rect x="295.8" y="77.0" width="308.4" height="18" rx="5" fill="#ffffff" stroke="#6741d9" stroke-width="1" opacity="0.97"/>
+<text x="450.0" y="89.8" font-size="10.5" text-anchor="middle" fill="#6741d9" class="arr-label">Binary WML1 chunks + evict + stats (WebSocket)</text>
+<path d="M 170.0 262.0 L 170.0 282.0" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4" marker-start="url(#ah_0)" marker-end="url(#ah_0)"/>
+<path d="M 296.0 464.0 L 320.0 464.0 Q 330.0 464.0 330.0 454.0 L 330.0 215.0 Q 330.0 205.0 340.0 205.0 L 366.0 205.0" fill="none" stroke="#1971c2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ah_0)"/>
+<rect x="284.6" y="263.0" width="90.8" height="18" rx="5" fill="#ffffff" stroke="#1971c2" stroke-width="1" opacity="0.97"/>
+<text x="330.0" y="275.8" font-size="10.5" text-anchor="middle" fill="#1971c2" class="arr-label">Pose + Batch</text>
+<path d="M 522.5 262.0 L 522.5 282.0" fill="none" stroke="#d9480f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#ah_4)" marker-end="url(#ah_4)"/>
+<path d="M 522.5 398.0 L 522.5 418.0" fill="none" stroke="#d9480f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#ah_4)" marker-end="url(#ah_4)"/>
+<path d="M 679.0 474.0 L 705.0 474.0 Q 715.0 474.0 715.0 464.0 L 715.0 194.0 Q 715.0 184.0 725.0 184.0 L 751.0 184.0" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ah_1)"/>
+<rect x="676.0" y="223.0" width="78.0" height="18" rx="5" fill="#ffffff" stroke="#2b8a3e" stroke-width="1" opacity="0.97"/>
+<text x="715.0" y="235.8" font-size="10.5" text-anchor="middle" fill="#2b8a3e" class="arr-label">Cache miss</text>
+<path d="M 838.5 222.0 L 838.0 244.0" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4" marker-end="url(#ah_1)"/>
+<path d="M 1022.5 222.0 L 1023.0 244.0" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4" marker-end="url(#ah_1)"/>
+<path d="M 1206.5 222.0 L 1207.0 244.0" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4" marker-end="url(#ah_1)"/>
+<path d="M 925.0 315.0 L 936.0 315.0" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ah_1)"/>
+<path d="M 1110.0 315.0 L 1120.0 315.0" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ah_1)"/>
+<path d="M 1207.0 386.0 L 1206.5 418.0" fill="none" stroke="#2b8a3e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#ah_1)"/>
+<path d="M 607.5 530.0 L 607.1 568.0 Q 607.0 578.0 617.0 578.0 L 710.0 578.0 Q 720.0 578.0 720.0 588.0 L 720.0 630.0" fill="none" stroke="#495057" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4" marker-end="url(#ah_2)"/>
+<rect x="609.0" y="569.0" width="110.0" height="18" rx="5" fill="#ffffff" stroke="#495057" stroke-width="1" opacity="0.97"/>
+<text x="664.0" y="581.8" font-size="10.5" text-anchor="middle" fill="#495057" class="arr-label">Zstd read/write</text>
+</svg>

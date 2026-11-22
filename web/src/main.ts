@@ -1,5 +1,6 @@
 import "./style.css";
 import type { Vec3 } from "./math";
+import { SpatialMinimap } from "./minimap";
 import { decodeChunkPacket, type ChunkCoord } from "./protocol";
 import { WorldRenderer } from "./renderer";
 
@@ -14,7 +15,20 @@ interface ServerStats {
   total_triangles: number;
 }
 
+interface CameraPreset {
+  pos: Vec3;
+  yaw: number;
+  pitch: number;
+}
+
+const CAMERA_PRESETS: Record<string, CameraPreset> = {
+  alpine: { pos: [12, 36, 48], yaw: -Math.PI * 0.5, pitch: -0.22 },
+  arches: { pos: [40, 58, 10], yaw: -Math.PI * 0.72, pitch: -0.34 },
+  caves: { pos: [0, -18, 0], yaw: -Math.PI * 0.35, pitch: -0.06 },
+};
+
 const canvas = document.getElementById("gpu-canvas") as HTMLCanvasElement;
+const minimapCanvas = document.getElementById("minimap-canvas") as HTMLCanvasElement;
 const errOverlay = document.getElementById("webgpu-error") as HTMLDivElement;
 const connDot = document.getElementById("conn-dot") as HTMLSpanElement;
 const fpsBadge = document.getElementById("fps-badge") as HTMLSpanElement;
@@ -29,11 +43,14 @@ const btnSeed = document.getElementById("btn-seed") as HTMLButtonElement;
 const btnBatch = document.getElementById("btn-batch") as HTMLButtonElement;
 const btnLodTint = document.getElementById("btn-lod-tint") as HTMLButtonElement;
 const batchStatus = document.getElementById("batch-status") as HTMLDivElement;
+const sunSlider = document.getElementById("sun-slider") as HTMLInputElement;
+const sunLabel = document.getElementById("sun-label") as HTMLSpanElement;
+const presetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".preset-btn"));
 
 const camera = {
-  pos: [12, 34, 48] as Vec3,
-  yaw: -Math.PI * 0.5,
-  pitch: -0.24,
+  pos: [...CAMERA_PRESETS.alpine.pos] as Vec3,
+  yaw: CAMERA_PRESETS.alpine.yaw,
+  pitch: CAMERA_PRESETS.alpine.pitch,
   seed: 42,
 };
 
@@ -47,9 +64,30 @@ function forwardDir(): Vec3 {
   return [Math.cos(camera.yaw) * cp, Math.sin(camera.pitch), Math.sin(camera.yaw) * cp];
 }
 
+function sunDirFromElevationDeg(deg: number): Vec3 {
+  const elev = (deg * Math.PI) / 180;
+  // Sweep sun azimuth smoothly from golden western horizon toward midday southeast
+  const t = Math.max(0, Math.min(1, (deg - 4) / (82 - 4)));
+  const azimuth = -0.35 + t * 1.0;
+  const horiz = Math.cos(elev);
+  return [Math.cos(azimuth) * horiz, Math.sin(elev), Math.sin(azimuth) * horiz];
+}
+
+function formatSunLabel(deg: number): string {
+  if (deg <= 14) return `Sunset ${deg}°`;
+  if (deg <= 28) return `Golden ${deg}°`;
+  if (deg <= 58) return `Afternoon ${deg}°`;
+  return `Midday ${deg}°`;
+}
+
 function setupInput() {
   window.addEventListener("keydown", (e) => {
     if (document.activeElement === seedInput) return;
+    if (e.code === "Space" || e.code.startsWith("Arrow")) {
+      if (document.activeElement !== sunSlider) {
+        e.preventDefault();
+      }
+    }
     keys.add(e.code);
   });
   window.addEventListener("keyup", (e) => keys.delete(e.code));
@@ -119,8 +157,21 @@ async function boot() {
     return;
   }
 
+  const minimap = new SpatialMinimap(minimapCanvas);
+
+  const applySunAngle = () => {
+    const deg = Number(sunSlider.value) || 46;
+    renderer.sunDir = sunDirFromElevationDeg(deg);
+    sunLabel.textContent = formatSunLabel(deg);
+  };
+  applySunAngle();
+  sunSlider.addEventListener("input", applySunAngle);
+
   setupInput();
-  window.addEventListener("resize", () => renderer.resize());
+  window.addEventListener("resize", () => {
+    renderer.resize();
+    minimap.syncSize();
+  });
 
   let ws: WebSocket | null = null;
   let lastPoseSentAt = 0;
@@ -180,6 +231,7 @@ async function boot() {
         const decoded = decodeChunkPacket(ev.data);
         if (decoded.seed === camera.seed) {
           renderer.upsertChunk(decoded);
+          minimap.upsertChunk(decoded);
         }
         return;
       }
@@ -188,7 +240,9 @@ async function boot() {
         if (msg.type === "stats") {
           updateStatsHud(msg as ServerStats);
         } else if (msg.type === "evict" && Array.isArray(msg.coords)) {
-          renderer.evictChunks(msg.coords as ChunkCoord[]);
+          const coords = msg.coords as ChunkCoord[];
+          renderer.evictChunks(coords);
+          minimap.evictChunks(coords);
         }
       }
     };
@@ -196,19 +250,39 @@ async function boot() {
 
   connectWs();
 
+  for (const btn of presetButtons) {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.preset;
+      const preset = key ? CAMERA_PRESETS[key] : undefined;
+      if (!preset) return;
+      camera.pos = [...preset.pos] as Vec3;
+      camera.yaw = preset.yaw;
+      camera.pitch = preset.pitch;
+      for (const other of presetButtons) {
+        other.classList.toggle("active", other === btn);
+      }
+      posLine.textContent = `Pos: ${camera.pos[0].toFixed(1)}, ${camera.pos[1].toFixed(1)}, ${camera.pos[2].toFixed(1)}`;
+      sendPose(true);
+      btn.blur();
+    });
+  }
+
   btnSeed.addEventListener("click", () => {
     const parsed = Math.max(1, parseInt(seedInput.value, 10) || 42);
     camera.seed = parsed;
     renderer.clearAllChunks();
+    minimap.clear();
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "clear_client_cache" }));
     }
     sendPose(true);
+    btnSeed.blur();
   });
 
   btnLodTint.addEventListener("click", () => {
     renderer.lodTint = !renderer.lodTint;
     btnLodTint.classList.toggle("active", renderer.lodTint);
+    btnLodTint.blur();
   });
 
   btnBatch.addEventListener("click", async () => {
@@ -235,6 +309,7 @@ async function boot() {
       batchStatus.textContent = `Batch bake failed: ${e}`;
     } finally {
       btnBatch.disabled = false;
+      btnBatch.blur();
     }
   });
 
@@ -249,6 +324,7 @@ async function boot() {
     updateCamera(dt);
     sendPose(false);
     renderer.render(camera.pos, forwardDir(), now / 1000);
+    minimap.render(camera.pos, camera.yaw, renderer.getAspect(), now);
 
     frameCount++;
     if (now - fpsTimer >= 400) {

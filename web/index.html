@@ -44,6 +44,21 @@
           <input id="seed-input" type="number" value="42" min="1" max="999999" />
           <button id="btn-seed">Load</button>
         </div>
+
+        <div class="sun-control">
+          <div class="sun-header">
+            <label for="sun-slider">Time of Day</label>
+            <span id="sun-label">Afternoon 46°</span>
+          </div>
+          <input id="sun-slider" type="range" min="4" max="82" step="1" value="46" />
+        </div>
+
+        <div class="presets">
+          <button type="button" class="preset-btn active" data-preset="alpine">Alpine Vista</button>
+          <button type="button" class="preset-btn" data-preset="arches">Sky Arches</button>
+          <button type="button" class="preset-btn" data-preset="caves">Crystal Caves</button>
+        </div>
+
         <div class="row">
           <button id="btn-batch" class="primary">Batch Bake Region (GPU)</button>
           <button id="btn-lod-tint">LOD Tint</button>
@@ -55,6 +70,19 @@
       <div class="help">
         <strong>Drag</strong> or <strong>Click</strong> to look · <strong>WASD</strong> fly ·
         <strong>Space/Shift</strong> up/down · <strong>F</strong> fast boost
+      </div>
+    </aside>
+
+    <aside class="minimap-panel" aria-label="Spatial streaming minimap">
+      <div class="minimap-header">
+        <span>Streaming Map</span>
+        <span class="minimap-scale">±230m</span>
+      </div>
+      <canvas id="minimap-canvas" width="160" height="160"></canvas>
+      <div class="minimap-legend">
+        <span><i class="swatch lod0"></i>LOD0</span>
+        <span><i class="swatch lod1"></i>LOD1</span>
+        <span><i class="swatch bake"></i>Bake</span>
       </div>
     </aside>
 

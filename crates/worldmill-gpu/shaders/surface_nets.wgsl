@@ -10,7 +10,7 @@ struct ChunkUniforms {
     density_grid_dim: u32, // 26
     max_vertices: u32,
     max_indices: u32,
-    _pad0: u32,
+    bedrock_y: f32,
     _pad1: u32,
 };
 
@@ -66,94 +66,126 @@ fn noise3(p: vec3<f32>, seed: f32) -> f32 {
 }
 
 fn fbm3(p_in: vec3<f32>, seed: f32, octaves: i32) -> f32 {
-    var p = p_in;
     var sum = 0.0;
     var amp = 0.5;
     var freq = 1.0;
     for (var i = 0; i < octaves; i = i + 1) {
-        sum += amp * noise3(p * freq, seed + f32(i) * 19.7);
+        sum += amp * noise3(p_in * freq, seed + f32(i) * 19.7);
         freq *= 2.03;
         amp *= 0.5;
     }
     return sum;
 }
 
-fn ridged2(xz: vec2<f32>, seed: f32) -> f32 {
-    var p = vec3<f32>(xz.x, 0.37, xz.y);
-    var sum = 0.0;
-    var amp = 0.55;
-    var freq = 1.0;
-    for (var i = 0; i < 4; i = i + 1) {
-        let n = 1.0 - abs(noise3(p * freq, seed + f32(i) * 13.1));
-        sum += amp * (n * n);
-        freq *= 2.1;
-        amp *= 0.48;
-    }
-    return sum;
+fn noise2(p: vec2<f32>, seed: f32) -> f32 {
+    let i = floor(p);
+    let f = fract(p);
+    let u = f * f * (3.0 - 2.0 * f);
+    let a = hash31(vec3<f32>(i, 0.0), seed);
+    let b = hash31(vec3<f32>(i + vec2<f32>(1.0, 0.0), 0.0), seed);
+    let c = hash31(vec3<f32>(i + vec2<f32>(0.0, 1.0), 0.0), seed);
+    let d = hash31(vec3<f32>(i + vec2<f32>(1.0, 1.0), 0.0), seed);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
 }
 
-// -----------------------------------------------------------------------------
-// World SDF: d < 0 => SOLID, d >= 0 => AIR
-// Dramatic mountains + terraced overhangs + sky arches + winding caves
-// -----------------------------------------------------------------------------
+fn smooth_min(a: f32, b: f32, width: f32) -> f32 {
+    let overlap = max(width - abs(a - b), 0.0) / width;
+    return min(a, b) - 0.25 * width * overlap * overlap;
+}
+
+fn smooth_max(a: f32, b: f32, width: f32) -> f32 {
+    return -smooth_min(-a, -b, width);
+}
+
+fn terrain_height(xz: vec2<f32>, seed: f32) -> f32 {
+    let warp = vec2<f32>(
+        noise2(xz * 0.005 + vec2<f32>(3.1, 7.8), seed + 3.0),
+        noise2(xz * 0.005 + vec2<f32>(8.4, 2.6), seed + 11.0)
+    );
+    let warped = xz + warp * 54.0;
+    let continent = noise2(warped * 0.0028, seed);
+    let uplift = smoothstep(-0.30, 0.65, continent);
+    let ridge_noise = noise2(warped * vec2<f32>(0.008, 0.0045), seed + 41.0);
+    let ridge = 1.0 - sqrt(ridge_noise * ridge_noise + 0.003);
+    let foothills = noise2(warped * 0.018, seed + 59.0) * 7.0;
+    let uplands = 5.0 + 12.0 * continent + ridge * ridge * (20.0 + 66.0 * uplift) + foothills;
+
+    // A sinuous river centerline cuts a trough with rounded shelves and steep risers.
+    let channel_noise = noise2(warped * vec2<f32>(0.0055, 0.0035), seed + 67.0);
+    let channel = sqrt(channel_noise * channel_noise + 0.001);
+    let incision = 34.0 * (1.0 - smoothstep(0.045, 0.46, channel));
+    let cut = uplands - incision;
+    let step_height = 6.0;
+    let layer = cut / step_height;
+    let shelves = step_height * (floor(layer) + smoothstep(0.20, 0.80, fract(layer)));
+    let canyon = 1.0 - smoothstep(0.36, 0.69, channel);
+    return mix(cut, shelves, canyon);
+}
+
+fn add_rock_arch(d: f32, p: vec3<f32>, height: f32, relief: f32, seed: f32) -> f32 {
+    let spacing = 144.0;
+    let tile = floor(p.xz / spacing + 0.5);
+    let tile_seed = vec3<f32>(tile, 3.0);
+    let center_offset = vec2<f32>(hash31(tile_seed, seed + 211.0),
+                                 hash31(tile_seed, seed + 229.0)) * 24.0 - 12.0;
+    let local = p.xz - tile * spacing - center_offset;
+    let rise = p.y - height;
+    // The finite arch fits inside its tile, including the blend into the terrain.
+    if (dot(local, local) > 48.0 * 48.0 || rise > 48.0 || rise < -12.0) {
+        return d;
+    }
+
+    let angle = hash31(tile_seed, seed + 257.0) * 6.2831853;
+    let along = vec2<f32>(cos(angle), sin(angle));
+    let span = dot(local, along);
+    let depth = dot(local, vec2<f32>(-along.y, along.x));
+    let width = mix(17.0, 26.0, hash31(tile_seed, seed + 271.0));
+    let arch_height = mix(16.0, 24.0, hash31(tile_seed, seed + 283.0));
+
+    // The upper half ellipse forms the crown. Its legs extend below the terrain.
+    let crown = max(rise - 4.0, 0.0);
+    let ring = length(vec2<f32>(span / width, crown / arch_height));
+    let shell = abs(ring - 1.0) * min(width, arch_height) - 3.5;
+    let rock = smooth_max(shell, abs(depth) - 6.0, 3.0) + relief * 0.6;
+    return smooth_min(d, rock, 3.5);
+}
+
+// d < 0 is solid and d >= 0 is air.
 struct SdfSample {
     dist: f32,
     cave_factor: f32,
 };
 
-fn eval_world_sdf(p: vec3<f32>, seed_u: u32) -> SdfSample {
-    let seed = f32(seed_u % 10000u);
+fn sample_terrain(p: vec3<f32>, height: f32, seed: f32) -> SdfSample {
+    let overhang = fbm3(p * vec3<f32>(0.022, 0.037, 0.022), seed + 77.0, 2) * 10.0;
+    let detail = noise3(p * 0.086, seed + 131.0) * 0.9;
+    let relief = overhang + detail;
+    var d = p.y - height + relief;
+    d = add_rock_arch(d, p, height, relief, seed);
 
-    // 1. Continental base + ridged alpine peaks
-    let warp_x = fbm3(vec3<f32>(p.x * 0.008, 1.3, p.z * 0.008), seed + 3.0, 2) * 26.0;
-    let warp_z = fbm3(vec3<f32>(p.x * 0.008, 7.9, p.z * 0.008), seed + 11.0, 2) * 26.0;
-    let w_xz = vec2<f32>(p.x + warp_x, p.z + warp_z);
-
-    let continent = fbm3(vec3<f32>(w_xz.x * 0.0045, 0.0, w_xz.y * 0.0045), seed, 3);
-    let ridges = ridged2(w_xz * 0.0075, seed + 41.0);
-    let mountain_mask = smoothstep(-0.2, 0.45, continent);
-    let base_height = -6.0 + continent * 18.0 + ridges * (18.0 + 38.0 * mountain_mask);
-
-    // 2. 3D overhangs & sculpted canyon cliffs
-    let overhang = fbm3(p * vec3<f32>(0.022, 0.032, 0.022), seed + 77.0, 3) * 14.5;
-    let detail = fbm3(p * 0.075, seed + 131.0, 2) * 2.2;
-    var d = (p.y - base_height) + overhang + detail;
-
-    // 3. Dramatic floating sky arches / monoliths above valleys
-    let sky_band = abs(p.y - 44.0) - 10.0;
-    if (sky_band < 18.0) {
-        let arch_noise = fbm3(p * vec3<f32>(0.017, 0.035, 0.017), seed + 211.0, 3);
-        let arch_sdf = sky_band - (arch_noise - 0.34) * 32.0;
-        // Smooth union with terrain
-        let k = 6.0;
-        let h = clamp(0.5 + 0.5 * (arch_sdf - d) / k, 0.0, 1.0);
-        d = mix(arch_sdf, d, h) - k * h * (1.0 - h);
-    }
-
-    // 4. Winding 3D cave tunnels (dual-field cheese/worm caves)
+    // Intersect two warped noise isosurfaces to form linked tunnels. The wider
+    // sections reach the canyon walls and open up into cavern entrances.
     var cave_factor = 0.0;
-    if (p.y < 32.0 && p.y > -42.0) {
-        let c1 = fbm3(p * vec3<f32>(0.028, 0.042, 0.028), seed + 307.0, 2);
-        let c2 = fbm3(p * vec3<f32>(0.028, 0.042, 0.028) + vec3<f32>(17.3, -9.1, 23.7), seed + 409.0, 2);
-        let tunnel = sqrt(c1 * c1 + c2 * c2);
-        let cave_radius = 0.20 + 0.08 * smoothstep(24.0, -24.0, p.y);
-        let carve = cave_radius - tunnel;
-        if (carve > 0.0) {
-            let carve_dist = carve * 28.0;
-            // Smooth subtract cave from solid terrain
-            let k = 2.5;
-            let h = clamp(0.5 - 0.5 * (d - carve_dist) / k, 0.0, 1.0);
-            let new_d = mix(d, carve_dist, h) + k * h * (1.0 - h);
-            cave_factor = clamp((new_d - d) * 0.25, 0.0, 1.0);
-            d = new_d;
-        }
+    if (d < 13.0) {
+        let cave_p = p * vec3<f32>(0.022, 0.031, 0.022);
+        let c1 = fbm3(cave_p, seed + 307.0, 2);
+        let c2 = fbm3(cave_p + vec3<f32>(17.3, -9.1, 23.7), seed + 409.0, 2);
+        let tunnel = sqrt(c1 * c1 + c2 * c2 + 0.0004);
+        let chamber = smoothstep(-0.2, 0.65, noise3(cave_p * 0.42, seed + 463.0));
+        let radius = mix(0.115, 0.245, chamber);
+        let carve = (radius - tunnel) * 42.0;
+        let carved = smooth_max(d, carve, 2.5);
+        cave_factor = smoothstep(0.0, 4.0, carved - d);
+        d = carved;
     }
 
-    // 5. Bedrock floor near y = -40 so caves have a walkable bottom (solid when y < -40 => d < 0)
-    let floor_d = p.y + 40.0;
-    d = min(d, floor_d);
+    // A smooth union with the floor guarantees solid bedrock below y = -40.
+    return SdfSample(smooth_min(d, p.y - params.bedrock_y, 1.5), cave_factor);
+}
 
-    return SdfSample(d, cave_factor);
+fn eval_world_sdf(p: vec3<f32>) -> SdfSample {
+    let seed = f32(params.seed % 10000u);
+    return sample_terrain(p, terrain_height(p.xz, seed), seed);
 }
 
 fn density_idx(x: u32, y: u32, z: u32) -> u32 {
@@ -169,27 +201,38 @@ fn cell_idx(x: u32, y: u32, z: u32) -> u32 {
 // -----------------------------------------------------------------------------
 // Pass 1: Evaluate 3D SDF density grid (26 x 26 x 26)
 // -----------------------------------------------------------------------------
+var<workgroup> column_heights: array<f32, 16>;
+
 @compute @workgroup_size(4, 4, 4)
-fn eval_density(@builtin(global_invocation_id) gid: vec3<u32>) {
+fn eval_density(@builtin(global_invocation_id) gid: vec3<u32>,
+                @builtin(local_invocation_id) lid: vec3<u32>) {
     let dim = params.density_grid_dim;
+    let world_p = params.origin + vec3<f32>(gid) * params.voxel_size;
+    let column = lid.x + 4u * lid.z;
+    let seed = f32(params.seed % 10000u);
+
+    if (lid.y == 0u && gid.x < dim && gid.z < dim) {
+        column_heights[column] = terrain_height(world_p.xz, seed);
+    }
+    workgroupBarrier();
+
     if (gid.x >= dim || gid.y >= dim || gid.z >= dim) {
         return;
     }
-    let world_p = params.origin + vec3<f32>(gid) * params.voxel_size;
-    let s = eval_world_sdf(world_p, params.seed);
-    densities[density_idx(gid.x, gid.y, gid.z)] = s.dist;
+    densities[density_idx(gid.x, gid.y, gid.z)] =
+        sample_terrain(world_p, column_heights[column], seed).dist;
 }
 
 // -----------------------------------------------------------------------------
 // Pass 2: Surface Nets Vertex Placement + Gradient Normals + SDF AO + Biomes
 // -----------------------------------------------------------------------------
-fn compute_normal(p: vec3<f32>, eps: f32) -> vec3<f32> {
-    let dx = eval_world_sdf(p + vec3<f32>(eps, 0.0, 0.0), params.seed).dist
-           - eval_world_sdf(p - vec3<f32>(eps, 0.0, 0.0), params.seed).dist;
-    let dy = eval_world_sdf(p + vec3<f32>(0.0, eps, 0.0), params.seed).dist
-           - eval_world_sdf(p - vec3<f32>(0.0, eps, 0.0), params.seed).dist;
-    let dz = eval_world_sdf(p + vec3<f32>(0.0, 0.0, eps), params.seed).dist
-           - eval_world_sdf(p - vec3<f32>(0.0, 0.0, eps), params.seed).dist;
+fn compute_normal(p: vec3<f32>, eps: f32, height: f32, seed: f32) -> vec3<f32> {
+    let dx = eval_world_sdf(p + vec3<f32>(eps, 0.0, 0.0)).dist
+           - eval_world_sdf(p - vec3<f32>(eps, 0.0, 0.0)).dist;
+    let dy = sample_terrain(p + vec3<f32>(0.0, eps, 0.0), height, seed).dist
+           - sample_terrain(p - vec3<f32>(0.0, eps, 0.0), height, seed).dist;
+    let dz = eval_world_sdf(p + vec3<f32>(0.0, 0.0, eps)).dist
+           - eval_world_sdf(p - vec3<f32>(0.0, 0.0, eps)).dist;
     let g = vec3<f32>(dx, dy, dz);
     let len = length(g);
     if (len < 1e-5) {
@@ -203,7 +246,7 @@ fn compute_ao(p: vec3<f32>, n: vec3<f32>, step: f32) -> f32 {
     var weight = 0.55;
     for (var i = 1; i <= 3; i = i + 1) {
         let dist_t = step * f32(i) * 1.45;
-        let d = eval_world_sdf(p + n * dist_t, params.seed).dist;
+        let d = eval_world_sdf(p + n * dist_t).dist;
         occ += weight * max(0.0, (dist_t - d) / dist_t);
         weight *= 0.55;
     }
@@ -288,11 +331,14 @@ fn build_vertices(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 
     let local_pos = select(vec3<f32>(0.5), avg / hits, hits > 0.0);
-    let world_pos = params.origin + (vec3<f32>(gid) + local_pos) * params.voxel_size;
+    let cell_origin = params.origin + vec3<f32>(gid) * params.voxel_size;
+    let world_pos = cell_origin + local_pos * params.voxel_size;
 
-    let normal = compute_normal(world_pos, params.voxel_size * 0.45);
+    let seed = f32(params.seed % 10000u);
+    let height = terrain_height(world_pos.xz, seed);
+    let normal = compute_normal(world_pos, params.voxel_size * 0.45, height, seed);
     let ao = compute_ao(world_pos, normal, params.voxel_size);
-    let sample = eval_world_sdf(world_pos, params.seed);
+    let sample = sample_terrain(world_pos, height, seed);
     let biome = classify_biome(world_pos, normal, sample.cave_factor);
 
     let vid = atomicAdd(&counters.vertex_count, 1u);
@@ -342,6 +388,11 @@ fn emit_indices(@builtin(global_invocation_id) gid: vec3<u32>) {
         return;
     }
 
+    // This cell supplies one vertex to every quad owned by this invocation.
+    let v2 = cell_to_vert[cell_idx(x, y, z)];
+    if (v2 == 0xFFFFFFFFu) {
+        return;
+    }
     let d0 = densities[density_idx(x, y, z)];
 
     // X-edge: (x, y, z) -> (x+1, y, z), x in 0..n, y in 1..=n, z in 1..=n
@@ -350,7 +401,6 @@ fn emit_indices(@builtin(global_invocation_id) gid: vec3<u32>) {
         if ((d0 < 0.0) != (d1 < 0.0)) {
             let v0 = cell_to_vert[cell_idx(x, y - 1u, z - 1u)];
             let v1 = cell_to_vert[cell_idx(x, y,      z - 1u)];
-            let v2 = cell_to_vert[cell_idx(x, y,      z     )];
             let v3 = cell_to_vert[cell_idx(x, y - 1u, z     )];
             // Solid at d0, Air at d1 => outward normal +X => flip = false
             emit_quad(v0, v1, v2, v3, d0 >= 0.0);
@@ -363,7 +413,6 @@ fn emit_indices(@builtin(global_invocation_id) gid: vec3<u32>) {
         if ((d0 < 0.0) != (d1 < 0.0)) {
             let v0 = cell_to_vert[cell_idx(x - 1u, y, z - 1u)];
             let v1 = cell_to_vert[cell_idx(x - 1u, y, z     )];
-            let v2 = cell_to_vert[cell_idx(x,      y, z     )];
             let v3 = cell_to_vert[cell_idx(x,      y, z - 1u)];
             // Solid at d0, Air at d1 => outward normal +Y => flip = false
             emit_quad(v0, v1, v2, v3, d0 >= 0.0);
@@ -376,7 +425,6 @@ fn emit_indices(@builtin(global_invocation_id) gid: vec3<u32>) {
         if ((d0 < 0.0) != (d1 < 0.0)) {
             let v0 = cell_to_vert[cell_idx(x - 1u, y - 1u, z)];
             let v1 = cell_to_vert[cell_idx(x,      y - 1u, z)];
-            let v2 = cell_to_vert[cell_idx(x,      y,      z)];
             let v3 = cell_to_vert[cell_idx(x - 1u, y,      z)];
             // Solid at d0, Air at d1 => outward normal +Z => flip = false
             emit_quad(v0, v1, v2, v3, d0 >= 0.0);
