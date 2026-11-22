@@ -17,7 +17,34 @@ namespace WorldMill
         public Transform playerTransform;
         public WorldMillLocalRpgStore rpgStore;
 
-        private bool _dialogueOpen;
+        /// Number of NPC dialogues currently open; the HUD lets Esc close a dialogue before pausing.
+        public static int OpenDialogueCount { get; private set; }
+        /// Frame on which an NPC consumed Esc to close its dialogue.
+        public static int EscapeConsumedFrame { get; private set; } = -1;
+
+        private WorldMill.UI.WorldMillMinimalHud _hud;
+        private bool _dialogueOpenRaw;
+        private bool _dialogueOpen
+        {
+            get => _dialogueOpenRaw;
+            set
+            {
+                if (value == _dialogueOpenRaw) return;
+                _dialogueOpenRaw = value;
+                OpenDialogueCount = Mathf.Max(0, OpenDialogueCount + (value ? 1 : -1));
+            }
+        }
+
+        private void OnDisable() => _dialogueOpen = false;
+
+        private bool InputBlocked
+        {
+            get
+            {
+                if (_hud == null) _hud = FindFirstObjectByType<WorldMill.UI.WorldMillMinimalHud>();
+                return _hud != null && _hud.IsInputBlocked;
+            }
+        }
         private Texture2D _panelBg;
         private Texture2D _borderTex;
         private GUIStyle _nameStyle;
@@ -36,6 +63,7 @@ namespace WorldMill
                 rpgStore = FindFirstObjectByType<WorldMillLocalRpgStore>();
 
             if (playerTransform == null) return;
+            if (InputBlocked) { _dialogueOpen = false; return; }
 
             Vector3 toPlayer = playerTransform.position - transform.position;
             float dist = toPlayer.magnitude;
@@ -52,7 +80,12 @@ namespace WorldMill
 
             if (dist <= interactRadius && Input.GetKeyDown(KeyCode.E))
                 _dialogueOpen = !_dialogueOpen;
-            else if (_dialogueOpen && (dist > interactRadius + 3f || Input.GetKeyDown(KeyCode.Escape)))
+            else if (_dialogueOpen && Input.GetKeyDown(KeyCode.Escape))
+            {
+                _dialogueOpen = false;
+                EscapeConsumedFrame = Time.frameCount;
+            }
+            else if (_dialogueOpen && dist > interactRadius + 3f)
                 _dialogueOpen = false;
         }
 
@@ -98,7 +131,7 @@ namespace WorldMill
 
         private void OnGUI()
         {
-            if (playerTransform == null) return;
+            if (playerTransform == null || InputBlocked) return;
             float dist = Vector3.Distance(playerTransform.position, transform.position);
             if (dist > interactRadius) return;
 

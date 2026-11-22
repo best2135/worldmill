@@ -32,6 +32,16 @@ namespace WorldMill
         public float cameraDistance = 6.2f;
         public float cameraHeight = 1.95f;
         public float mouseSensitivity = 2.6f;
+        public bool invertY = false;
+
+        [Header("Title screen orbit (Oakhaven overlook)")]
+        public Vector2 titleOrbitCenterXZ = new Vector2(512f, 466f);
+        public float titleOrbitRadius = 118f;
+        public float titleOrbitHeight = 44f;
+        public float titleOrbitDegPerSec = 1.6f;
+        public float titleOrbitStartDeg = 200f;
+
+        public static readonly Vector3 SpawnPoint = new Vector3(512f, 0f, 438f);
 
         [Header("Sun")]
         public float sunElevationDeg = 26f;
@@ -59,6 +69,9 @@ namespace WorldMill
         private Vector3 _rollDir;
         private float _currentHorizSpeed = 0f;
 
+        private float _titleBlend = -1f;   // 1 = scenic orbit, 0 = gameplay camera; -1 = not yet initialised
+        private float _titleOrbitDeg;
+
         private void Awake()
         {
             _cc = GetComponent<CharacterController>();
@@ -78,7 +91,11 @@ namespace WorldMill
         private void Start()
         {
             if (playerCamera == null) playerCamera = Camera.main;
+            if (rpgStore == null) rpgStore = FindFirstObjectByType<WorldMillLocalRpgStore>();
+            if (minimalHud == null) minimalHud = FindFirstObjectByType<WorldMillMinimalHud>();
+            if (sunLight == null && RenderSettings.sun != null) sunLight = RenderSettings.sun;
             if (sunLight != null) _hdSun = sunLight.GetComponent<HDAdditionalLightData>();
+            _titleOrbitDeg = titleOrbitStartDeg;
             CurrentHp = MaxHp;
             CurrentStamina = MaxStamina;
             SnapToTerrain(transform.position);
@@ -88,9 +105,10 @@ namespace WorldMill
         private void Update()
         {
             float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
-            bool codexOpen = minimalHud != null && minimalHud.IsCodexOpen;
+            // Title, pause, settings and journal all block gameplay input (movement, combat, hotkeys).
+            bool inputBlocked = minimalHud != null && minimalHud.IsInputBlocked;
 
-            if (!codexOpen)
+            if (!inputBlocked)
             {
                 HandleMetaControls(dt);
                 HandleCameraLook(dt);
@@ -99,7 +117,7 @@ namespace WorldMill
                 else UpdateThirdPersonMovement(dt);
             }
 
-            UpdateCameraTransform();
+            UpdateCameraTransform(dt);
             UpdateTorchVisuals();
             SyncHudVitals();
         }
@@ -155,6 +173,34 @@ namespace WorldMill
             }
         }
 
+        /// Sets the sun elevation (time of day), clamped to the 4°–80° range the [ / ] keys use.
+        public void SetSunElevation(float deg)
+        {
+            sunElevationDeg = Mathf.Clamp(deg, 4f, 80f);
+            ApplySunAngle();
+        }
+
+        /// Fresh-journey respawn on the Oakhaven approach road with full vitals and a reset camera.
+        public void ResetToSpawn()
+        {
+            IsFlyMode = false;
+            IsSwimming = false;
+            TorchLit = false;
+            if (_avatarRoot != null) _avatarRoot.gameObject.SetActive(true);
+            if (_torchObj != null) _torchObj.gameObject.SetActive(false);
+            _rollTimer = 0f;
+            _currentHorizSpeed = 0f;
+            transform.rotation = Quaternion.identity;
+            TeleportXZ(SpawnPoint.x, SpawnPoint.z, 0f, 14f);
+            CurrentHp = MaxHp;
+            CurrentStamina = MaxStamina;
+            if (_animator != null)
+            {
+                _animator.SetFloat("Speed", 0f);
+                _animator.SetBool("IsSwimming", false);
+            }
+        }
+
         public void TeleportXZ(float x, float z, float yaw, float pitch)
         {
             SnapToTerrain(new Vector3(x, 0f, z));
@@ -177,8 +223,9 @@ namespace WorldMill
         {
             if (Input.GetMouseButton(1))
             {
+                float ySign = invertY ? -1f : 1f;
                 _yaw += Input.GetAxis("Mouse X") * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * mouseSensitivity, -75f, 80f);
+                _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * mouseSensitivity * ySign, -75f, 80f);
             }
             if (Input.GetMouseButtonDown(0) && !IsFlyMode && _animator != null && CurrentStamina >= 12f)
             {
@@ -292,46 +339,89 @@ namespace WorldMill
             }
         }
 
-        private void UpdateCameraTransform()
+        private void UpdateCameraTransform(float dt)
         {
             if (playerCamera == null) return;
-            Quaternion camRot = Quaternion.Euler(_pitch, _yaw, 0f);
+            GameplayCameraPose(out Vector3 camPos, out Quaternion camRot);
+
+            // Title screen: slow scenic orbit over Oakhaven; eases back to the shoulder camera on start.
+            bool titleOpen = minimalHud != null && minimalHud.IsTitleOpen;
+            if (_titleBlend < 0f) _titleBlend = titleOpen ? 1f : 0f;
+            _titleBlend = Mathf.MoveTowards(_titleBlend, titleOpen ? 1f : 0f, dt / (titleOpen ? 0.6f : 1.6f));
+            if (titleOpen) _titleOrbitDeg = Mathf.Repeat(_titleOrbitDeg + titleOrbitDegPerSec * dt, 360f);
+
+            if (_titleBlend > 0.0001f)
+            {
+                TitleOrbitPose(out Vector3 orbitPos, out Quaternion orbitRot);
+                float k = Mathf.SmoothStep(0f, 1f, _titleBlend);
+                camPos = Vector3.Lerp(camPos, orbitPos, k);
+                camRot = Quaternion.Slerp(camRot, orbitRot, k);
+            }
+
+            playerCamera.transform.position = camPos;
+            playerCamera.transform.rotation = camRot;
+        }
+
+        private void GameplayCameraPose(out Vector3 camPos, out Quaternion camRot)
+        {
+            camRot = Quaternion.Euler(_pitch, _yaw, 0f);
 
             if (IsFlyMode)
             {
-                playerCamera.transform.position = transform.position + Vector3.up * 1.6f;
-                playerCamera.transform.rotation = camRot;
+                camPos = transform.position + Vector3.up * 1.6f;
                 return;
             }
 
             Vector3 pivot = transform.position + Vector3.up * cameraHeight;
             Vector3 desiredOffset = camRot * new Vector3(0f, 0f, -cameraDistance);
-            Vector3 camPos = pivot + desiredOffset;
+            camPos = pivot + desiredOffset;
 
             if (Physics.SphereCast(pivot, 0.28f, desiredOffset.normalized, out RaycastHit hit, cameraDistance))
                 camPos = pivot + desiredOffset.normalized * Mathf.Max(1.0f, hit.distance - 0.15f);
+        }
 
-            playerCamera.transform.position = camPos;
-            playerCamera.transform.rotation = camRot;
+        /// High, slow orbit around Oakhaven with a gentle vertical drift, looking past the hamlet
+        /// into the valley. Never dips below terrain + 18 m.
+        private void TitleOrbitPose(out Vector3 pos, out Quaternion rot)
+        {
+            float centerY = TerrainY(titleOrbitCenterXZ.x, titleOrbitCenterXZ.y);
+            var center = new Vector3(titleOrbitCenterXZ.x, centerY, titleOrbitCenterXZ.y);
+
+            float rad = _titleOrbitDeg * Mathf.Deg2Rad;
+            float drift = Mathf.Sin(rad * 2.3f); // slow breathing in radius and height
+            float r = titleOrbitRadius * (1f + 0.06f * drift);
+            pos = center + new Vector3(Mathf.Sin(rad) * r, titleOrbitHeight + 6f * drift, Mathf.Cos(rad) * r);
+            pos.y = Mathf.Max(pos.y, TerrainY(pos.x, pos.z) + 18f);
+
+            // Look slightly beyond the hamlet so the valley fills the right two thirds of the frame.
+            Vector3 look = center + Vector3.up * 8f - new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)) * 30f;
+            rot = Quaternion.LookRotation((look - pos).normalized, Vector3.up);
+        }
+
+        private static float TerrainY(float x, float z)
+        {
+            var t = Terrain.activeTerrain;
+            return t != null ? t.SampleHeight(new Vector3(x, 0f, z)) + t.transform.position.y : 0f;
         }
 
         private void UpdateTorchVisuals()
         {
             if (!TorchLit || _torchLight == null) return;
             float flicker = 0.88f + 0.14f * Mathf.Sin(Time.time * 17.3f) + 0.08f * Mathf.Cos(Time.time * 29.1f);
-            if (_hdTorch != null) _hdTorch.SetIntensity(650f * flicker, LightUnit.Lumen);
+            if (_hdTorch != null) _hdTorch.SetLightIntensity(650f * flicker, LightUnit.Lumen);
             else _torchLight.intensity = 650f * flicker;
         }
 
         private void ApplySunAngle()
         {
             if (sunLight == null) return;
+            if (_hdSun == null) _hdSun = sunLight.GetComponent<HDAdditionalLightData>();
             float t = Mathf.InverseLerp(4f, 80f, sunElevationDeg);
             sunLight.transform.rotation = Quaternion.Euler(sunElevationDeg, -38f + t * 72f, 0f);
             sunLight.useColorTemperature = true;
             sunLight.colorTemperature = Mathf.Lerp(3200f, 5900f, Mathf.Pow(t, 0.55f));
             float lux = Mathf.Lerp(28000f, 115000f, Mathf.Pow(t, 0.5f));
-            if (_hdSun != null) _hdSun.SetIntensity(lux, LightUnit.Lux);
+            if (_hdSun != null) _hdSun.SetLightIntensity(lux, LightUnit.Lux);
             else sunLight.intensity = lux;
         }
 
@@ -371,7 +461,7 @@ namespace WorldMill
             _torchLight.color = new Color(1.0f, 0.62f, 0.24f);
             _torchLight.range = 24f;
             _hdTorch = lightGo.AddComponent<HDAdditionalLightData>();
-            _hdTorch.SetIntensity(650f, LightUnit.Lumen);
+            _hdTorch.SetLightIntensity(650f, LightUnit.Lumen);
             _hdTorch.EnableShadows(true);
             _torchObj.gameObject.SetActive(TorchLit);
         }

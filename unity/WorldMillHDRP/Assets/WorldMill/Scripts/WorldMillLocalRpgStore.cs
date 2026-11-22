@@ -66,12 +66,30 @@ namespace WorldMill
     }
 
     /// <summary>
+    /// Replacement for the deprecated HDAdditionalLightData.SetIntensity(float, LightUnit):
+    /// same conversion HDRP performs internally, without the CS0618 warning.
+    /// </summary>
+    public static class WorldMillLightUtil
+    {
+        public static void SetLightIntensity(this HDAdditionalLightData hd, float intensity, LightUnit unit)
+        {
+            if (hd == null) return;
+            var light = hd.GetComponent<Light>();
+            if (light == null) return;
+            light.intensity = LightUnitUtils.ConvertIntensity(light, intensity, unit, LightUnitUtils.GetNativeLightUnit(light.type));
+            light.lightUnit = unit;
+        }
+    }
+
+    /// <summary>
     /// 100% self-contained local RPG state, quests, lore, inventory, and persistent
     /// HDRP campfire/structure store (no external server required).
     /// </summary>
     public sealed class WorldMillLocalRpgStore : MonoBehaviour
     {
         public Transform playerTransform;
+        [Tooltip("Auto-resolved. While its menus, journal or title are open, E does not complete quests.")]
+        public WorldMill.UI.WorldMillMinimalHud minimalHud;
         public float questCompletionRadius = 16f;
 
         public LocalSaveData Save { get; private set; }
@@ -82,8 +100,17 @@ namespace WorldMill
         public bool CanCompleteActiveQuest { get; private set; }
         public float DistanceToActiveQuest { get; private set; } = 999f;
 
+        /// True once the journey differs from a fresh save: XP or levels earned, a quest completed,
+        /// a different quest tracked, or a campfire placed. Drives "Continue" on the title screen.
+        public bool HasSaveProgress =>
+            Save != null && (Save.level > 1 || Save.xp > 0 || Save.completedQuests.Count > 0 ||
+                             Save.structures.Count > 0 || Save.activeQuestId != DefaultActiveQuestId);
+
+        private const string DefaultActiveQuestId = "q_river_crossing";
+
         private string SavePath => Path.Combine(Application.persistentDataPath, "worldmill_rpg_save.json");
         private readonly List<(Light l, HDAdditionalLightData hd, float phase)> _campfireLights = new();
+        private readonly List<GameObject> _campfireRoots = new();
 
         private void Awake()
         {
@@ -101,11 +128,14 @@ namespace WorldMill
                 if (p != null) playerTransform = p.transform;
             }
 
+            if (minimalHud == null) minimalHud = FindFirstObjectByType<WorldMill.UI.WorldMillMinimalHud>();
+            bool inputBlocked = minimalHud != null && minimalHud.IsInputBlocked;
+
             if (ActiveQuest != null && !ActiveQuest.completed && playerTransform != null)
             {
                 DistanceToActiveQuest = Vector3.Distance(playerTransform.position, ActiveQuest.targetPosition);
                 CanCompleteActiveQuest = DistanceToActiveQuest <= questCompletionRadius;
-                if (CanCompleteActiveQuest && Input.GetKeyDown(KeyCode.E))
+                if (CanCompleteActiveQuest && !inputBlocked && Input.GetKeyDown(KeyCode.E))
                 {
                     CompleteQuest(ActiveQuest.id);
                 }
@@ -123,7 +153,7 @@ namespace WorldMill
                 var c = _campfireLights[i];
                 if (c.l == null) continue;
                 float flick = 0.88f + 0.14f * Mathf.Sin(t * 13.1f + c.phase) + 0.08f * Mathf.Cos(t * 25.7f + c.phase);
-                if (c.hd != null) c.hd.SetIntensity(1250f * flick, LightUnit.Lumen);
+                if (c.hd != null) c.hd.SetLightIntensity(1250f * flick, LightUnit.Lumen);
                 else c.l.intensity = 1250f * flick;
             }
         }
@@ -200,6 +230,31 @@ namespace WorldMill
             Persist();
             SpawnCampfireVisual(s);
             ShowToast("Campfire lit");
+        }
+
+        /// Writes the save to disk immediately (progress is also saved on every quest / campfire).
+        public void SaveNow(bool toast = true)
+        {
+            if (Save == null) return;
+            bool ok = Persist();
+            if (toast) ShowToast(ok ? "Journey saved" : "Could not save the journey");
+        }
+
+        /// Starts a fresh journey: removes placed campfires, resets the save to defaults,
+        /// re-syncs quest state and persists. The player controller handles respawn.
+        public void ResetSave(bool toast = true)
+        {
+            foreach (var root in _campfireRoots)
+                if (root != null) Destroy(root);
+            _campfireRoots.Clear();
+            _campfireLights.Clear();
+
+            Save = CreateFreshSave();
+            SyncQuestStatuses();
+            CanCompleteActiveQuest = false;
+            DistanceToActiveQuest = 999f;
+            Persist();
+            if (toast) ShowToast("A new journey begins");
         }
 
         public void ShowToast(string msg)
@@ -288,11 +343,17 @@ namespace WorldMill
                 catch { /* fall through to fresh save */ }
             }
 
-            Save = new LocalSaveData();
-            Save.inventory.Add(new RpgInventoryItem { id = "iron_greatsword", name = "Iron Greatsword", kind = "weapon", quantity = 1, description = "Balanced northern longblade." });
-            Save.inventory.Add(new RpgInventoryItem { id = "weathered_brigandine", name = "Weathered Brigandine", kind = "armor", quantity = 1, description = "Riveted leather and iron plates." });
-            Save.inventory.Add(new RpgInventoryItem { id = "pine_torch", name = "Pitch Pine Torch", kind = "consumable", quantity = 3, description = "Press T to ignite in dusk or deep woods." });
+            Save = CreateFreshSave();
             Persist();
+        }
+
+        private static LocalSaveData CreateFreshSave()
+        {
+            var save = new LocalSaveData { activeQuestId = DefaultActiveQuestId };
+            save.inventory.Add(new RpgInventoryItem { id = "iron_greatsword", name = "Iron Greatsword", kind = "weapon", quantity = 1, description = "Balanced northern longblade." });
+            save.inventory.Add(new RpgInventoryItem { id = "weathered_brigandine", name = "Weathered Brigandine", kind = "armor", quantity = 1, description = "Riveted leather and iron plates." });
+            save.inventory.Add(new RpgInventoryItem { id = "pine_torch", name = "Pitch Pine Torch", kind = "consumable", quantity = 3, description = "Press T to ignite in dusk or deep woods." });
+            return save;
         }
 
         private void SyncQuestStatuses()
@@ -324,6 +385,7 @@ namespace WorldMill
             if (lit == null) return;
 
             var root = new GameObject($"Campfire_{s.id}");
+            _campfireRoots.Add(root);
             root.transform.position = s.position;
             root.transform.rotation = Quaternion.Euler(0f, s.rotationY, 0f);
 
@@ -385,15 +447,15 @@ namespace WorldMill
             l.color = new Color(1.0f, 0.56f, 0.20f);
             l.range = 20f;
             var hd = lgo.AddComponent<HDAdditionalLightData>();
-            hd.SetIntensity(1250f, LightUnit.Lumen);
+            hd.SetLightIntensity(1250f, LightUnit.Lumen);
             hd.EnableShadows(true);
             _campfireLights.Add((l, hd, s.id * 1.37f));
         }
 
-        private void Persist()
+        private bool Persist()
         {
-            try { File.WriteAllText(SavePath, JsonUtility.ToJson(Save, true)); }
-            catch (Exception e) { Debug.LogWarning($"[WorldMill] Failed to save RPG state: {e.Message}"); }
+            try { File.WriteAllText(SavePath, JsonUtility.ToJson(Save, true)); return true; }
+            catch (Exception e) { Debug.LogWarning($"[WorldMill] Failed to save RPG state: {e.Message}"); return false; }
         }
     }
 }

@@ -1,24 +1,24 @@
 {
   "meta": {
     "name": "WorldMill HUD — design tokens",
-    "version": "2.0.0",
-    "pass": "Restraint pass: ink on dark glass, mostly empty screen",
+    "version": "2.1.0",
+    "pass": "Restraint pass: ink on dark glass, mostly empty screen. 2.1 adds title, pause and settings menus.",
     "referenceResolution": [1920, 1080],
     "scaling": "px are authored at 1080p. Unity multiplies by max(0.6, Screen.height / 1080); hairlines stay max(1, round(scale)) px.",
     "colorSpace": "Hex is sRGB. Unity Color floats are sRGB (hex / 255): assign as-is in a linear HDRP project, never pre-linearize.",
-    "implementation": "unity/WorldMillHDRP/Assets/WorldMill/Scripts/UI/WorldMillMinimalHud.cs",
+    "implementation": "unity/WorldMillHDRP/Assets/WorldMill/Scripts/UI/WorldMillMinimalHud.cs (+ WorldMillGameSettings.cs for persisted settings)",
     "reference": "docs/ui-design-system.html"
   },
   "color": {
     "ink":            { "hex": "#e8e2d4", "unity": "new Color(0.910f, 0.886f, 0.831f, 1f)", "usage": "All text and hairlines, at the opacities below" },
-    "gold":           { "hex": "#d4a853", "unity": "new Color(0.831f, 0.659f, 0.325f, 1f)", "usage": "Attention targets only: quest diamond, active hotbar slot, boss phase notch" },
+    "gold":           { "hex": "#d4a853", "unity": "new Color(0.831f, 0.659f, 0.325f, 1f)", "usage": "Where to look and what is chosen: quest diamond, active hotbar slot, boss phase notch, focused menu item rule, active tab underline, chosen toggle option, slider fill and thumb. Never on text, frames or large fills." },
     "hp":             { "hex": "#9b2e2a", "unity": "new Color(0.608f, 0.180f, 0.165f, 1f)", "usage": "Health fill" },
     "hpTrail":        { "hex": "#e8e2d4", "alpha": 0.50, "unity": "new Color(0.910f, 0.886f, 0.831f, 0.50f)", "usage": "Damage trail behind the health fill" },
     "stamina":        { "hex": "#3f7659", "unity": "new Color(0.247f, 0.463f, 0.349f, 1f)", "usage": "Stamina fill (muted pine)" },
     "staminaTrail":   { "hex": "#e8e2d4", "alpha": 0.32, "unity": "new Color(0.910f, 0.886f, 0.831f, 0.32f)", "usage": "Stamina drain trail" },
     "xp":             { "hex": "#d4a853", "alpha": 0.72, "unity": "new Color(0.831f, 0.659f, 0.325f, 0.72f)", "usage": "2px XP hairline; the one passive use of gold, kept dim" },
     "surface":        { "hex": "#0c0e12", "unity": "new Color(0.047f, 0.055f, 0.071f, 1f)", "usage": "Bar tracks (55%), prompt (58%), journal sheet (90%)" },
-    "scrim":          { "hex": "#06070a", "alpha": 0.62, "unity": "new Color(0.024f, 0.027f, 0.035f, 0.62f)", "usage": "Full-screen dim behind the journal" },
+    "scrim":          { "hex": "#06070a", "alpha": 0.62, "unity": "new Color(0.024f, 0.027f, 0.035f, 0.62f)", "usage": "Full-screen dim behind the journal; left menu scrim ramp at 82%; pause dim at 22%" },
     "barBorder":      { "hex": "#000000", "alpha": 0.78, "unity": "new Color(0f, 0f, 0f, 0.78f)", "usage": "1px dark border around HP and stamina" },
     "textShadow":     { "hex": "#000000", "alpha": "0.45–0.85", "unity": "Mathf.Lerp(0.45f, 0.85f, Mathf.InverseLerp(-6f, 55f, SunElevationDeg))", "usage": "1px offset shadow; firmer when the sun is high and the sky bright" }
   },
@@ -44,7 +44,12 @@
       "body":          { "family": "sans",  "size": 14, "usage": "Descriptions, toast, prompt" },
       "secondary":     { "family": "sans",  "size": 13, "usage": "Objective line, tabs, objectives" },
       "meta":          { "family": "sans",  "size": 12, "usage": "Lv., weapon, givers, footers, cardinals" },
-      "micro":         { "family": "sans",  "size": 11, "usage": "Compass distance" }
+      "micro":         { "family": "sans",  "size": 11, "usage": "Compass distance, keybind caps" },
+      "wordmark":      { "family": "serif", "size": 64, "usage": "Title screen \"WorldMill\"" },
+      "pauseTitle":    { "family": "serif", "size": 34, "usage": "\"Paused\"" },
+      "menuItem":      { "family": "serif", "size": 23, "usage": "Title and pause menu items" },
+      "settingsTitle": { "family": "serif", "size": 26, "usage": "\"Settings\" heading (same as journalTitle)" },
+      "subtitle":      { "family": "sans",  "size": 15, "usage": "Title subtitle \"Oakhaven Crossing\"" }
     },
     "case": "Sentence case for all UI text. Title case only for place names (Oakhaven Crossing) and boss names; quest, item and lore titles keep the casing the store gives them. No uppercase tracking, no emoji."
   },
@@ -59,6 +64,25 @@
     "hotbar":   { "status": "design only", "anchor": "bottom-center", "slot": 44, "gap": 6, "bottom": 40, "activeBorder": "gold" },
     "bossBar":  { "status": "design only", "anchor": "bottom-center", "width": 640, "height": 5, "bottom": 156, "phaseNotch": "gold, 1px × 9px" }
   },
+  "menus": {
+    "scrim":    { "anchor": "left", "width": "max(900, 58% of screen)", "ramp": "1 − smoothstep(0, 1, u), slightly steeper mid-way", "color": "scrim", "alpha": 0.82, "pauseDim": 0.22, "note": "Never an opaque box; the live world stays visible" },
+    "title":    { "left": 120, "wordmark": 64, "subtitle": "Oakhaven Crossing", "rule": "48 × 1px, hairlineStrong", "rowHeight": 46,
+                  "items": ["Continue (only with save progress; meta: Lv. n · active quest)", "New journey (inline confirm when progress exists)", "Settings", "Quit"],
+                  "focus": "ink strong + 18 × 1px gold rule, 32px left of the text", "idle": "ink muted",
+                  "camera": "WorldMillPlayerController orbits Oakhaven (512, 466): radius 118 m, +44 m, 1.6°/s; eases back to the shoulder camera over 1.6 s" },
+    "pause":    { "left": 120, "heading": "Paused", "meta": "Lv. n · active quest", "rowHeight": 46,
+                  "items": ["Resume", "Journal", "Settings", "Save journey", "Return to title", "Quit"],
+                  "timeScale": 0, "hudUnderneath": 0.15 },
+    "settings": { "left": 84, "width": 720, "height": 690, "padding": 36, "surfaceAlpha": 0.88, "frameInkOpacity": 0.14, "rowHeight": 58,
+                  "tabs": ["Display", "Controls", "Audio", "Save"], "activeTab": "ink strong + 1px gold underline",
+                  "slider": { "track": "230 × 1px ink 22% (30% when active)", "fill": "gold 85%, 2px", "thumb": "gold, 2 × 13px (16px when active)", "value": "sans 13, right-aligned in 64px" },
+                  "toggle": "text options; chosen = ink strong + 1px gold underline, others ink faint",
+                  "button": "1px frame hairlineStrong, hover/focus 55% + 6% wash (same as journal Track)",
+                  "confirm": "inline: Start fresh?  Confirm  Cancel — Cancel focused by default",
+                  "ranges": { "fov": [50, 90], "sunElevation": [4, 80], "hudScale": [0.8, 1.3], "mouseSensitivity": [0.5, 6.0], "cameraDistance": [3.0, 14.0], "masterVolume": [0, 1] },
+                  "persistence": "Application.persistentDataPath/worldmill_settings.json, debounced 350 ms after a change and on close" },
+    "escape":   ["Inline confirm → cancel", "Settings → back to Pause or Title", "Journal → close", "NPC dialogue → close", "Playing → Pause", "Pause → Resume"]
+  },
   "motion": {
     "trailDelayMs": 450,
     "trailDrain": "max(gap × 3.5, 0.18) per second after the delay; continuous drains under 1.5% per frame do not reset the delay",
@@ -68,16 +92,23 @@
     "journalFadeMs": 220,
     "journalLiftPx": 10,
     "hudHideFadeMs": 250,
+    "menuFadeMs": 450,
+    "settingsFadeMs": 220,
+    "menuLiftPx": 10,
+    "uiClock": "All UI fades use Time.unscaledDeltaTime; pause sets Time.timeScale = 0 and restores 1 on resume, return to title, OnDisable and OnDestroy",
     "lowHpPulse": "below 25%: fill brightness 0.82–1.0, ~0.8 Hz",
     "lowStaminaPulse": "below 15%: fill opacity 0.6–1.0, ~0.9 Hz",
     "reducedMotion": "Keep fades, drop pulses and the toast rise"
   },
   "rules": [
     "The screen belongs to the world: no panel behind vitals, tracker or compass.",
-    "Gold marks where to look next: quest diamond, active hotbar slot, boss phase notch. Nothing else.",
+    "Gold marks where to look next or what is chosen: quest diamond, hotbar slot, boss notch, menu focus, active tab, toggle choice, slider fill. Nothing else.",
     "1px hairlines only. No chamfers, glows, gradients on chrome, or rounded corners.",
     "Shadows exist for legibility over bright sky, not for decoration.",
     "Show only what the store knows: quests, lore and items come from WorldMillLocalRpgStore.",
-    "H hides everything; J opens the journal and frees the cursor; Esc closes it."
+    "H hides everything; J opens the journal and frees the cursor; Esc closes it.",
+    "Menus sit on the live world: left gradient scrim, editorial serif list, no boxes behind items.",
+    "No stock IMGUI chrome: every button, toggle and slider is drawn from hairlines and text.",
+    "Esc always steps back one level: confirm, settings, journal, dialogue, then pause."
   ]
 }

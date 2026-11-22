@@ -62,7 +62,7 @@ namespace WorldMill
                 var f = _flickerLights[i];
                 if (f.light == null) continue;
                 float flick = 0.88f + 0.14f * Mathf.Sin(t * 11.7f + f.phase) + 0.07f * Mathf.Cos(t * 23.3f + f.phase * 1.7f);
-                if (f.hd != null) f.hd.SetIntensity(f.baseLum * flick, LightUnit.Lumen);
+                if (f.hd != null) f.hd.SetLightIntensity(f.baseLum * flick, LightUnit.Lumen);
                 else f.light.intensity = f.baseLum * flick;
             }
         }
@@ -213,7 +213,7 @@ namespace WorldMill
             l.color = new Color(1.0f, 0.62f, 0.24f);
             l.range = 18f;
             var hd = lightGo.AddComponent<HDAdditionalLightData>();
-            hd.SetIntensity(lumens, LightUnit.Lumen);
+            hd.SetLightIntensity(lumens, LightUnit.Lumen);
             hd.EnableShadows(false);
             _flickerLights.Add((l, hd, lumens, xz.x * 0.37f + xz.y * 0.19f));
         }

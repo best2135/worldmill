@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WorldMill HUD</title>
-<meta name="description" content="WorldMill HUD after the restraint pass: hairlines, dark glass, a mostly empty screen, and gold only where the player should look next.">
+<meta name="description" content="WorldMill HUD and menus after the restraint pass: hairlines, dark glass, a mostly empty screen, and gold only where the player should look next or what is chosen.">
 <style>
 /* ==========================================================================
-   WorldMill HUD — restraint pass (tokens v2.0.0)
+   WorldMill HUD — restraint pass (tokens v2.1.0: + title, pause, settings)
    Mirrors docs/ui-tokens.json and Scripts/UI/WorldMillMinimalHud.cs.
    ========================================================================== */
 :root {
@@ -69,16 +69,28 @@ button { font: inherit; color: inherit; }
   position: relative; overflow: hidden; isolation: isolate;
   aspect-ratio: 16 / 9; min-height: 440px; width: 100%;
   border: 1px solid var(--hair);
-  background:
-    radial-gradient(70% 34% at 50% 63%, rgba(201, 150, 108, .20), transparent 70%),
-    linear-gradient(180deg, #0a0f18 0%, #141c2a 28%, #262e3d 48%, #463f45 58%, #5f524f 62.8%, #16181c 63%, #101215 76%, #08090b 100%);
+  background: #08090b;
   font-family: var(--sans); color: var(--ink-strong);
   user-select: none;
+  --zoom: 1; --sunb: 1; --hs: 1;
 }
+/* World: sky + optional cloud band + horizon. --zoom follows FOV, --sunb follows sun elevation. */
+.world { position: absolute; inset: 0; overflow: hidden; }
+.pan { position: absolute; inset: -6% -8%; transform: scale(var(--zoom)); transition: transform 300ms ease; }
+.sky { position: absolute; inset: 0; filter: brightness(var(--sunb)) saturate(calc(.7 + var(--sunb) * .3)); transition: filter 300ms ease;
+  background:
+    radial-gradient(70% 34% at 50% 63%, rgba(201, 150, 108, .20), transparent 70%),
+    linear-gradient(180deg, #0a0f18 0%, #141c2a 28%, #262e3d 48%, #463f45 58%, #5f524f 62.8%, #16181c 63%, #101215 76%, #08090b 100%); }
+.clouds { position: absolute; left: 0; right: 0; top: 30%; height: 22%; opacity: .55; transition: opacity 400ms ease; filter: brightness(var(--sunb));
+  background: radial-gradient(28% 40% at 22% 60%, rgba(120,116,124,.30), transparent 70%), radial-gradient(34% 46% at 64% 46%, rgba(132,120,122,.26), transparent 70%), radial-gradient(22% 36% at 88% 66%, rgba(110,108,118,.24), transparent 70%); }
+.stage.no-clouds .clouds { opacity: 0; }
+.stage[data-state="title"] .pan, .stage.from-title .pan { animation: orbit 46s ease-in-out infinite alternate; }
+@keyframes orbit { from { transform: scale(var(--zoom)) translateX(2.5%); } to { transform: scale(var(--zoom)) translateX(-2.5%); } }
 .horizon { position: absolute; left: 0; right: 0; top: 63%; height: 1px; background: linear-gradient(90deg, transparent, rgba(232,226,212,.20) 18%, rgba(232,226,212,.20) 82%, transparent); }
-.hud { position: absolute; inset: 0; transition: opacity 250ms ease; text-shadow: var(--shadow); }
-.stage[data-state="hidden"] .hud { opacity: 0; }
-.stage[data-state="journal"] .hud { opacity: .15; }
+.hud { --k: calc(var(--kb, .8) * var(--hs)); position: absolute; inset: 0; transition: opacity 250ms ease; text-shadow: var(--shadow); }
+.stage[data-state="hidden"] .hud, .stage.hud-off .hud { opacity: 0; }
+.stage[data-state="journal"] .hud, .stage[data-state="pause"] .hud, .stage[data-state="settings"] .hud { opacity: .15; }
+.stage[data-state="title"] .hud, .stage.from-title .hud { opacity: 0; transition-duration: 220ms; }
 .px { font-variant-numeric: tabular-nums; }
 
 /* Compass — top center */
@@ -92,7 +104,8 @@ button { font: inherit; color: inherit; }
 .qmark .dist { position: absolute; top: 9px; left: 0; transform: translateX(-50%); font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
 
 /* Toast — under the compass */
-.toast { position: absolute; left: 50%; top: calc(var(--k) * 84px); transform: translateX(-50%); display: flex; align-items: center; gap: 14px; white-space: nowrap; font-size: max(12px, calc(var(--k) * 14px)); color: var(--ink-strong); opacity: 0; pointer-events: none; }
+.toast { position: absolute; z-index: 5; left: 50%; top: calc(var(--k) * 84px); transform: translateX(-50%); display: flex; align-items: center; gap: 14px; white-space: nowrap; font-size: max(12px, calc(var(--k) * 14px)); color: var(--ink-strong); opacity: 0; pointer-events: none; text-shadow: var(--shadow); }
+.stage[data-state="hidden"] .toast { visibility: hidden; }
 .toast::before, .toast::after { content: ""; width: 28px; height: 1px; background: rgba(232,226,212,.30); box-shadow: none; }
 .toast.run { animation: toast 4250ms both; }
 @keyframes toast {
@@ -156,7 +169,7 @@ button { font: inherit; color: inherit; }
 .jtabs button { appearance: none; background: none; border: 0; padding: 2px 0; cursor: pointer; font-size: 13px; color: var(--ink-faint); position: relative; }
 .jtabs button:hover { color: rgba(232,226,212,.78); }
 .jtabs button[aria-selected="true"] { color: var(--ink-strong); }
-.jtabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1px; background: rgba(232,226,212,.7); }
+.jtabs button[aria-selected="true"]::after, .stabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1px; background: var(--gold); }
 .jbody { display: grid; grid-template-columns: minmax(170px, 34%) 1fr; gap: 0 clamp(20px, calc(var(--k) * 40px), 40px); min-height: 0; padding-top: 16px; }
 .jlist { border-right: 1px solid rgba(232,226,212,.07); padding-right: clamp(10px, calc(var(--k) * 20px), 20px); overflow: auto; min-height: 0; }
 .row { display: block; width: 100%; text-align: left; appearance: none; background: none; border: 0; border-left: 1px solid transparent; padding: 7px 10px 8px 13px; margin-bottom: 3px; cursor: pointer; }
@@ -186,6 +199,93 @@ button { font: inherit; color: inherit; }
 .jfoot { display: flex; justify-content: space-between; gap: 12px; padding-top: 12px; font-size: 12px; color: var(--ink-faint); }
 .undisc { font-size: 12px; color: rgba(232,226,212,.38); padding: 8px 14px; }
 
+
+/* ---------- Menus: title, pause, settings (tokens → menus.*) ---------- */
+.mscrim, .mdim { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 450ms ease; }
+.mscrim { background: linear-gradient(90deg, rgba(6,7,10,.82) 0%, rgba(6,7,10,.66) 24%, rgba(6,7,10,.30) 44%, rgba(6,7,10,0) 62%); }
+.mdim { background: rgba(6,7,10,.22); }
+.stage[data-state="title"] .mscrim, .stage[data-state="pause"] .mscrim, .stage[data-state="settings"] .mscrim { opacity: 1; }
+.stage[data-state="pause"] .mdim, .stage[data-state="settings"]:not(.from-title) .mdim { opacity: 1; }
+
+.menu { position: absolute; left: calc(var(--k) * 120px); top: 50%; transform: translateY(calc(-50% + 10px)); opacity: 0; visibility: hidden;
+  transition: opacity 450ms ease, transform 450ms ease, visibility 0s linear 450ms; text-shadow: 1px 1px 0 rgba(0,0,0,.45); max-width: calc(100% - var(--k) * 140px); }
+.stage[data-state="title"] .menu.title, .stage[data-state="pause"] .menu.pause { opacity: 1; visibility: visible; transform: translateY(-50%); transition: opacity 450ms ease, transform 450ms ease; }
+.menu.pause { transition-duration: 220ms; }
+.wordmark { margin: 0; font: 500 max(40px, calc(var(--k) * 64px))/1.1 var(--serif); color: var(--ink-strong); margin-left: -3px; }
+.msub { margin: 4px 0 0; font-size: max(13px, calc(var(--k) * 15px)); color: var(--ink-muted); }
+.mhead { margin: 0; font: 500 max(26px, calc(var(--k) * 34px))/1.2 var(--serif); color: var(--ink-strong); }
+.mmeta { margin: 6px 0 0; font-size: 13px; color: var(--ink-faint); }
+.mrule { width: 48px; height: 1px; background: var(--hair-strong); margin: calc(var(--k) * 28px) 0 calc(var(--k) * 22px); }
+.mlist { display: flex; flex-direction: column; }
+.mi { position: relative; display: flex; align-items: baseline; gap: 18px; appearance: none; background: none; border: 0; padding: 0; text-align: left; cursor: pointer;
+  height: max(36px, calc(var(--k) * 46px)); align-items: center; font: 500 max(18px, calc(var(--k) * 23px))/1 var(--serif); color: var(--ink-muted); white-space: nowrap; }
+.mi[data-focus="true"] { color: var(--ink-strong); }
+.mi[data-focus="true"]::before { content: ""; position: absolute; left: calc(var(--k) * -32px); top: 50%; width: calc(var(--k) * 18px); height: 1px; background: var(--gold); }
+.mi .meta { font: 12px/1 var(--sans); color: var(--ink-faint); }
+.mconfirm { display: flex; flex-direction: column; justify-content: center; min-height: max(52px, calc(var(--k) * 68px)); }
+.mconfirm .q { position: relative; display: flex; align-items: center; gap: 28px; font: 500 max(18px, calc(var(--k) * 23px))/1 var(--serif); color: var(--ink-strong); }
+.mconfirm .q::before { content: ""; position: absolute; left: calc(var(--k) * -32px); top: 50%; width: calc(var(--k) * 18px); height: 1px; background: var(--gold); }
+.mconfirm .warn { margin-top: 8px; font-size: 12px; color: var(--ink-faint); }
+.choices { display: inline-flex; gap: 24px; font: 14px/1 var(--sans); }
+.choices button { appearance: none; background: none; border: 0; padding: 4px 0; cursor: pointer; color: var(--ink-faint); position: relative; }
+.choices button:hover { color: rgba(232,226,212,.78); }
+.choices button[data-on="true"] { color: var(--ink-strong); }
+.choices button[data-on="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: var(--gold); }
+.mfoot { position: absolute; left: calc(var(--k) * 120px); bottom: calc(var(--k) * 48px); font-size: 12px; color: var(--ink-faint); opacity: 0; transition: opacity 450ms ease; text-shadow: 1px 1px 0 rgba(0,0,0,.45); }
+.stage[data-state="title"] .mfoot.title, .stage[data-state="pause"] .mfoot.pause { opacity: 1; }
+
+/* Settings sheet: left-anchored so the world stays visible on the right */
+.settings { position: absolute; left: calc(var(--k) * 84px); top: 50%; width: min(calc(var(--k) * 720px), calc(100% - 32px)); height: min(calc(var(--k) * 690px + 40px), calc(100% - 24px));
+  transform: translateY(calc(-50% + 10px)); background: rgba(12,14,18,.88); border: 1px solid rgba(232,226,212,.14); padding: clamp(16px, calc(var(--k) * 36px), 36px);
+  display: grid; grid-template-rows: auto 1fr auto; opacity: 0; visibility: hidden; transition: opacity 220ms ease, transform 220ms ease, visibility 0s linear 220ms; text-shadow: none; }
+.stage[data-state="settings"] .settings { opacity: 1; visibility: visible; transform: translateY(-50%); transition: opacity 220ms ease, transform 220ms ease; }
+.shead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid rgba(232,226,212,.10); }
+.shead h2 { margin: 0; font: 500 clamp(20px, calc(var(--k) * 26px), 26px)/1 var(--serif); color: var(--ink-strong); }
+.stabs { display: flex; gap: clamp(16px, calc(var(--k) * 28px), 28px); }
+.stabs button { appearance: none; background: none; border: 0; padding: 2px 0; cursor: pointer; font-size: 13px; color: var(--ink-faint); position: relative; }
+.stabs button:hover { color: rgba(232,226,212,.78); }
+.stabs button[aria-selected="true"] { color: var(--ink-strong); }
+.sbody { min-height: 0; overflow: auto; padding: 4px clamp(10px, calc(var(--k) * 14px), 14px) 0; margin: 0 calc(clamp(10px, calc(var(--k) * 14px), 14px) * -1); }
+.srow { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: max(50px, calc(var(--k) * 58px)); border-bottom: 1px solid rgba(232,226,212,.07); padding: 6px 0; }
+.srow[data-focus="true"] { background: linear-gradient(90deg, rgba(232,226,212,.035), rgba(232,226,212,.035)) no-repeat; background-size: calc(100% + 2 * clamp(10px, calc(var(--k) * 14px), 14px)) 100%; background-position: calc(clamp(10px, calc(var(--k) * 14px), 14px) * -1) 0; }
+.srow[data-focus="true"]::before { content: ""; position: absolute; left: calc(clamp(10px, calc(var(--k) * 14px), 14px) * -1); top: 12px; bottom: 12px; width: 1px; background: var(--gold); }
+.srow .sl-l { min-width: 0; }
+.srow .lab { font-size: 14px; color: rgba(232,226,212,.84); }
+.srow[data-focus="true"] .lab { color: var(--ink-strong); }
+.srow .hint { font-size: 12px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctl { display: flex; align-items: center; gap: 18px; flex: none; }
+.seg { display: inline-flex; gap: 22px; }
+.seg button { appearance: none; background: none; border: 0; padding: 4px 0; cursor: pointer; font-size: 13px; color: var(--ink-faint); position: relative; }
+.seg button:hover { color: rgba(232,226,212,.78); }
+.seg button[aria-pressed="true"] { color: var(--ink-strong); }
+.seg button[aria-pressed="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--gold); }
+.sl { -webkit-appearance: none; appearance: none; width: clamp(120px, calc(var(--k) * 230px), 230px); height: 22px; margin: 0; cursor: pointer; background:
+    linear-gradient(var(--gold), var(--gold)) 0 50% / var(--p, 50%) 2px no-repeat,
+    linear-gradient(rgba(232,226,212,.22), rgba(232,226,212,.22)) 0 50% / 100% 1px no-repeat; opacity: .96; }
+.sl:hover, .sl:focus-visible { background:
+    linear-gradient(var(--gold), var(--gold)) 0 50% / var(--p, 50%) 2px no-repeat,
+    linear-gradient(rgba(232,226,212,.30), rgba(232,226,212,.30)) 0 50% / 100% 1px no-repeat; opacity: 1; }
+.sl::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 2px; height: 13px; background: var(--gold); border: 0; border-radius: 0; }
+.sl:hover::-webkit-slider-thumb, .sl:active::-webkit-slider-thumb, .sl:focus-visible::-webkit-slider-thumb { height: 16px; }
+.sl::-moz-range-thumb { width: 2px; height: 13px; background: var(--gold); border: 0; border-radius: 0; }
+.sl::-moz-range-track { background: transparent; }
+.sl:focus-visible { outline: 1px solid var(--ink-muted); outline-offset: 4px; }
+.val { width: 64px; text-align: right; font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.sbtn { appearance: none; background: none; border: 1px solid var(--hair-strong); padding: 6px 16px; font-size: 13px; color: var(--ink-strong); cursor: pointer; }
+.sbtn:hover, .srow[data-focus="true"] .sbtn { border-color: rgba(232,226,212,.55); background: rgba(232,226,212,.06); }
+.ask { font-size: 14px; color: var(--ink-muted); }
+.kbl { margin: 22px 0 10px; font-size: 12px; color: var(--ink-faint); }
+.kb { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; padding-bottom: 8px; }
+.kb div { display: flex; align-items: center; gap: 12px; min-height: 29px; font-size: 13px; color: var(--ink-muted); }
+.kb kbd { flex: none; min-width: 74px; font: 11px/1 var(--sans); color: var(--ink-strong); }
+.kb kbd span { display: inline-block; padding: 4px 6px; border: 1px solid var(--hair-strong); }
+.snote { margin: 18px 0 8px; font-size: 12px; color: var(--ink-faint); max-width: 62ch; }
+.sfoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; font-size: 12px; color: var(--ink-faint); }
+.sback { appearance: none; background: none; border: 0; padding: 2px 0; cursor: pointer; font-size: 13px; color: var(--ink-muted); position: relative; }
+.sback:hover { color: var(--ink-strong); }
+.sback:hover::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--hair-strong); }
+@media (max-width: 760px) { .srow .hint { display: none; } .kb { grid-template-columns: 1fr; } }
+
 .caption { margin: 10px 0 0; font-size: 13px; color: var(--ink-faint); min-height: 1.55em; }
 
 /* ---------- Reference sections ---------- */
@@ -209,7 +309,8 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
 
 @media (prefers-reduced-motion: reduce) {
   .toast.run { animation-duration: 1ms; animation-iteration-count: 1; opacity: 1; }
-  .bar .trail, .bar.heal i, .prompt, .journal, .sheet, .hud { transition-duration: 1ms !important; transition-delay: 0s !important; }
+  .bar .trail, .bar.heal i, .prompt, .journal, .sheet, .hud, .menu, .mscrim, .mdim, .mfoot, .settings, .pan, .sky, .clouds { transition-duration: 1ms !important; transition-delay: 0s !important; }
+  .stage[data-state="title"] .pan, .stage.from-title .pan { animation: none; }
 }
 </style>
 </head>
@@ -218,24 +319,27 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
 
 <header class="head">
   <h1>WorldMill HUD</h1>
-  <p>Restraint pass. The screen belongs to the world; the HUD only whispers.</p>
-  <span class="meta">tokens v2.0.0 · WorldMillMinimalHud.cs</span>
+  <p>Restraint pass. The screen belongs to the world; the HUD and menus only whisper.</p>
+  <span class="meta">tokens v2.1.0 · WorldMillMinimalHud.cs</span>
 </header>
 
 <div class="toolbar" role="toolbar" aria-label="HUD state">
   <span class="lbl">State</span>
-  <button type="button" data-s="explore" aria-pressed="true">Exploring</button>
+  <button type="button" data-s="title" aria-pressed="true">Title</button>
+  <button type="button" data-s="explore" aria-pressed="false">Exploring</button>
   <button type="button" data-s="near" aria-pressed="false">Near target</button>
   <button type="button" data-s="damage" aria-pressed="false">Damage</button>
   <button type="button" data-s="toast" aria-pressed="false">Toast</button>
   <button type="button" data-s="combat" aria-pressed="false">Combat</button>
   <button type="button" data-s="journal" aria-pressed="false">Journal</button>
   <button type="button" data-s="hidden" aria-pressed="false">Hidden</button>
-  <span class="keys"><kbd>J</kbd> journal &nbsp; <kbd>H</kbd> hide &nbsp; <kbd>E</kbd> complete</span>
+  <button type="button" data-s="pause" aria-pressed="false">Pause</button>
+  <button type="button" data-s="settings" aria-pressed="false">Settings</button>
+  <span class="keys"><kbd>Esc</kbd> pause / back &nbsp; <kbd>J</kbd> journal &nbsp; <kbd>H</kbd> hide</span>
 </div>
 
-<div class="stage" id="stage" data-state="explore" tabindex="0" aria-label="HUD prototype over a twilight horizon">
-  <div class="horizon" aria-hidden="true"></div>
+<div class="stage" id="stage" data-state="title" tabindex="0" aria-label="HUD and menu prototype over a twilight horizon">
+  <div class="world" aria-hidden="true"><div class="pan"><div class="sky"></div><div class="clouds"></div><div class="horizon"></div></div></div>
 
   <div class="hud" id="hud">
     <div class="compass" aria-hidden="true">
@@ -243,8 +347,6 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
       <div id="ticks"></div>
       <div class="qmark" id="qmark"><span class="diamond"></span><span class="dist px" id="cdist"></span></div>
     </div>
-
-    <div class="toast" id="toast" role="status"></div>
 
     <div class="tracker" id="tracker">
       <div class="t"><span class="diamond" aria-hidden="true"></span><span id="ttitle"></span></div>
@@ -283,9 +385,45 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
         </div>
       </div>
       <div class="jbody"><div class="jlist" id="jlist"></div><div class="jdetail" id="jdetail"></div></div>
-      <div class="jfoot"><span>J or Esc to close</span><span class="px" id="jxp"></span></div>
+      <div class="jfoot"><span id="jclose">J or Esc to close</span><span class="px" id="jxp"></span></div>
     </div>
   </div>
+
+  <!-- Menus: shared left scrim, then title / pause lists and the settings sheet -->
+  <div class="mdim" aria-hidden="true"></div>
+  <div class="mscrim" aria-hidden="true"></div>
+
+  <div class="menu title" role="menu" aria-label="Title">
+    <h2 class="wordmark">WorldMill</h2>
+    <p class="msub">Oakhaven Crossing</p>
+    <div class="mrule"></div>
+    <div class="mlist" id="titleList"></div>
+  </div>
+  <div class="mfoot title" aria-hidden="true">Arrow keys to choose · Enter to confirm</div>
+
+  <div class="menu pause" role="menu" aria-label="Paused">
+    <h2 class="mhead">Paused</h2>
+    <p class="mmeta" id="pauseMeta"></p>
+    <div class="mrule"></div>
+    <div class="mlist" id="pauseList"></div>
+  </div>
+  <div class="mfoot pause" aria-hidden="true">Esc to resume · The world waits</div>
+
+  <div class="settings" id="settings" role="dialog" aria-label="Settings">
+    <div class="shead">
+      <h2>Settings</h2>
+      <div class="stabs" role="tablist">
+        <button type="button" role="tab" data-stab="display" aria-selected="true">Display</button>
+        <button type="button" role="tab" data-stab="controls" aria-selected="false">Controls</button>
+        <button type="button" role="tab" data-stab="audio" aria-selected="false">Audio</button>
+        <button type="button" role="tab" data-stab="save" aria-selected="false">Save</button>
+      </div>
+    </div>
+    <div class="sbody" id="sbody"></div>
+    <div class="sfoot"><span>Tab to switch · Esc to go back</span><button type="button" class="sback" id="sback">Back</button></div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
 </div>
 <p class="caption" id="caption" aria-live="polite"></p>
 
@@ -294,11 +432,14 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
   <p>Elden Ring and Witcher 3 both leave the frame to the landscape. Everything here earns its pixels or goes.</p>
   <ul class="rules">
     <li><b>Mostly empty.</b> No panel behind vitals, tracker or compass. Text sits on the world with a 1px shadow.</li>
-    <li><b><span class="gold-word">Gold</span> marks where to look next.</b> Quest diamond, active hotbar slot, boss phase notch. The 2px XP line is the one dimmed exception.</li>
+    <li><b><span class="gold-word">Gold</span> marks where to look next, or what is chosen.</b> Quest diamond, hotbar slot, boss notch; in menus the focus rule, active tab, chosen toggle option and slider fill. Never text, frames or large fills.</li>
     <li><b>Hairlines only.</b> 1px rules and frames. No chamfers, glows, bevels or rounded corners.</li>
     <li><b>Sentence case.</b> Title case only for place names like Oakhaven Crossing and boss names; store titles keep their own casing.</li>
     <li><b>Only what the store knows.</b> Quests, lore and items come from <code>WorldMillLocalRpgStore</code>. No placeholder flavour text.</li>
     <li><b>Legibility over bright sky.</b> Shadow strength follows <code>SunElevationDeg</code>: firmer at noon, nearly gone at dusk.</li>
+    <li><b>Menus sit on the world.</b> A left gradient scrim, never an opaque box. Title keeps the world live; pause freezes it.</li>
+    <li><b>No stock chrome.</b> Buttons, toggles and sliders are drawn from hairlines and text; nothing from the default IMGUI skin.</li>
+    <li><b>Esc steps back one level.</b> Confirm, settings, journal, dialogue, then pause and resume.</li>
   </ul>
 </section>
 
@@ -321,6 +462,7 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
         <tr class="g"><td colspan="3">Type</td></tr>
         <tr><td>serif</td><td class="v">26 · 24 · 18 · 16 · 15</td><td>Journal, detail, tracker, rows, lore</td></tr>
         <tr><td>sans</td><td class="v">14 · 13 · 12 · 11</td><td>Body, objective, meta, distance</td></tr>
+        <tr><td>menu serif</td><td class="v">64 · 34 · 23</td><td>Wordmark, Paused, menu items</td></tr>
       </tbody>
     </table>
     <table>
@@ -338,6 +480,12 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
         <tr><td>toast</td><td class="v">250 / 3200 / 800</td><td>In, hold, out</td></tr>
         <tr><td>prompt · journal</td><td class="v">180 · 220ms</td><td>Fade; journal lifts 10px</td></tr>
         <tr><td>hide hud</td><td class="v">250ms</td><td>Everything fades together</td></tr>
+        <tr><td>menus · settings</td><td class="v">450 · 220ms</td><td>Unscaled time; menus lift 10px</td></tr>
+        <tr class="g"><td colspan="3">Menus</td></tr>
+        <tr><td>title · pause</td><td class="v">left 120 · row 46</td><td>Focus rule 18 × 1px gold, 32px left</td></tr>
+        <tr><td>settings</td><td class="v">720 × 690</td><td>Left 84, 36 padding, rows 58</td></tr>
+        <tr><td>slider</td><td class="v">230 × 1px</td><td>Gold 2px fill, 2 × 13px thumb</td></tr>
+        <tr><td>scrim</td><td class="v">#06070a 82%</td><td>Left ramp to 0 at ~60%; pause dims 22%</td></tr>
       </tbody>
     </table>
   </div>
@@ -345,7 +493,7 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
 
 <section class="sec">
   <h2>In Unity</h2>
-  <p><code>WorldMill.UI.WorldMillMinimalHud</code> draws all of this in IMGUI with no assets. The player controller pushes vitals through <code>SetVitals</code> and reads <code>IsCodexOpen</code> to pause look input.</p>
+  <p><code>WorldMill.UI.WorldMillMinimalHud</code> draws all of this in IMGUI with no assets and owns the menu state machine. The player controller pushes vitals through <code>SetVitals</code>, reads <code>IsInputBlocked</code> to ignore gameplay input, and orbits the camera while <code>IsTitleOpen</code>. Settings persist through <code>WorldMillGameSettings</code>.</p>
   <table>
     <thead><tr><th>Region</th><th>Method</th><th>Reads from the store</th></tr></thead>
     <tbody>
@@ -355,6 +503,9 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
       <tr><td>Vitals</td><td class="v">DrawVitals</td><td><code>Save.level</code>, <code>xp</code>, <code>xpToNext</code>, <code>equippedWeapon</code></td></tr>
       <tr><td>Prompt</td><td class="v">DrawPrompt</td><td><code>CanCompleteActiveQuest</code> (the store handles <kbd>E</kbd>)</td></tr>
       <tr><td>Journal</td><td class="v">DrawJournal</td><td><code>Quests</code>, <code>lore</code>, <code>Save.inventory</code>, <code>SetActiveQuest</code></td></tr>
+      <tr><td>Title</td><td class="v">DrawTitle</td><td><code>HasSaveProgress</code>, <code>Save.level</code>, <code>ActiveQuest</code>, <code>ResetSave</code></td></tr>
+      <tr><td>Pause</td><td class="v">DrawPause</td><td><code>SaveNow</code>; sets <code>Time.timeScale</code> 0 / 1</td></tr>
+      <tr><td>Settings</td><td class="v">DrawSettings</td><td><code>SaveNow</code>, <code>ResetSave</code>; player <code>SetSunElevation</code>, <code>ResetToSpawn</code>, <code>mouseSensitivity</code>, <code>invertY</code>, <code>cameraDistance</code></td></tr>
     </tbody>
   </table>
 </section>
@@ -411,7 +562,11 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
   function sentence(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : ''; }
 
   // ---- Scale: authored at 1080p, previewed down to 0.6 ----
-  function rescale() { stage.style.setProperty('--k', Math.max(0.6, Math.min(1, stage.clientWidth / 1280)).toFixed(3)); }
+  function rescale() {
+    var k = Math.max(0.6, Math.min(1, stage.clientWidth / 1280)).toFixed(3);
+    stage.style.setProperty('--k', k);
+    stage.style.setProperty('--kb', k);   // .hud multiplies this by the HUD scale setting
+  }
   if (window.ResizeObserver) new ResizeObserver(rescale).observe(stage);
   rescale();
 
@@ -469,7 +624,7 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
     $('xpbar').firstChild.style.width = (SAVE.xp / SAVE.xpToNext * 100) + '%';
     $('lv').textContent = 'Lv. ' + SAVE.level;
     $('weapon').textContent = SAVE.weapon;
-    var canComplete = q && dist(q) <= COMPLETION_RADIUS && state !== 'journal';
+    var canComplete = q && dist(q) <= COMPLETION_RADIUS && (state === 'near' || state === 'explore');
     $('ptext').textContent = q ? 'Complete — ' + q.title : '';
     $('prompt').classList.toggle('on', !!canComplete);
     drawCompass();
@@ -522,7 +677,164 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
     $('jlist').innerHTML = list;
     $('jdetail').innerHTML = detail;
     $('jxp').textContent = 'Lv. ' + SAVE.level + ' · ' + SAVE.xp + ' / ' + SAVE.xpToNext + ' XP';
+    $('jclose').textContent = journalFromPause ? 'J or Esc to return' : 'J or Esc to close';
   }
+
+  // ---- Menus: title + pause (mirrors DrawTitle / DrawPause / DrawMenuList) ----
+  var hasProgress = SAVE.completed.length > 0 || SAVE.level > 1;   // store: HasSaveProgress
+  var menuFocus = 0, confirmNew = false, confirmChoice = 1;
+  var settingsFrom = 'title', journalFromPause = false;
+  function journeyMeta() { var q = active(); return 'Lv. ' + SAVE.level + ' · ' + (q ? q.title : 'Every quest complete'); }
+  function menuItems() {
+    if (state === 'title') return (hasProgress ? [['continue', 'Continue']] : []).concat([['new', 'New journey'], ['settings', 'Settings'], ['quit', 'Quit']]);
+    if (state === 'pause') return [['resume', 'Resume'], ['journal', 'Journal'], ['settings', 'Settings'], ['save', 'Save journey'], ['title', 'Return to title'], ['quit', 'Quit']];
+    return [];
+  }
+  function renderMenus() {
+    var items = menuItems(), html = '';
+    menuFocus = Math.max(0, Math.min(menuFocus, items.length - 1));
+    items.forEach(function (it, i) {
+      if (it[0] === 'new' && confirmNew) {
+        html += '<div class="mconfirm" data-i="' + i + '"><div class="q">Start fresh?<span class="choices">' +
+          '<button type="button" data-choice="0" data-on="' + (confirmChoice === 0) + '">Confirm</button>' +
+          '<button type="button" data-choice="1" data-on="' + (confirmChoice === 1) + '">Cancel</button></span></div>' +
+          '<div class="warn">Your current journey and campfires will be lost.</div></div>';
+        return;
+      }
+      html += '<button type="button" class="mi" role="menuitem" data-act="' + it[0] + '" data-i="' + i + '" data-focus="' + (i === menuFocus) + '">' + esc(it[1]) +
+        (it[0] === 'continue' ? '<span class="meta">' + esc(journeyMeta()) + '</span>' : '') + '</button>';
+    });
+    $('titleList').innerHTML = state === 'title' ? html : '';
+    $('pauseList').innerHTML = state === 'pause' ? html : '';
+    $('pauseMeta').textContent = journeyMeta();
+  }
+  function focusMenu(i) {
+    menuFocus = i;
+    var btns = stage.querySelectorAll('.mlist [data-i]');
+    for (var j = 0; j < btns.length; j++) if (btns[j].classList.contains('mi')) btns[j].setAttribute('data-focus', String(+btns[j].getAttribute('data-i') === i));
+  }
+  function activate(act) {
+    switch (act) {
+      case 'continue': setState('explore'); break;
+      case 'new':
+        if (hasProgress && !confirmNew) { confirmNew = true; confirmChoice = 1; renderMenus(); }
+        else startNewJourney();
+        break;
+      case 'settings': openSettings(); break;
+      case 'quit': toast(state === 'title' ? 'Quit stops Play Mode in the Editor' : 'Journey saved · Quit stops Play Mode in the Editor'); break;
+      case 'resume': setState('explore'); break;
+      case 'journal': setState('journal'); break;
+      case 'save': toast('Journey saved'); break;
+      case 'title': setState('title'); break;
+    }
+  }
+  function startNewJourney() { confirmNew = false; toast('A new journey begins'); setState('explore'); }
+
+  // ---- Settings (mirrors WorldMillGameSettings + DrawSettings) ----
+  var DEFAULTS = { fullscreen: true, vsync: true, fov: 62, sun: 26, clouds: true, hudScale: 1, showHud: true, sens: 2.6, invertY: false, camDist: 6.2, volume: 1, mute: false };
+  var S = Object.assign({}, DEFAULTS);
+  function toggle(id, label, hint) { return { id: id, type: 'choice', label: label, hint: hint, opts: ['Off', 'On'] }; }
+  function slider(id, label, hint, min, max, step, kstep, fmt) { return { id: id, type: 'slider', label: label, hint: hint, min: min, max: max, step: step, kstep: kstep, fmt: fmt }; }
+  function deg(v) { return Math.round(v) + '°'; }
+  var ROWS = {
+    display: [
+      { id: 'fullscreen', type: 'choice', label: 'Window mode', hint: 'Applies to standalone builds', opts: ['Fullscreen', 'Windowed'] },
+      toggle('vsync', 'VSync', 'Sync frames to the display'),
+      slider('fov', 'Field of view', 'Vertical, in degrees', 50, 90, 1, 1, deg),
+      slider('sun', 'Time of day', 'Sun elevation; also [ and ]', 4, 80, 1, 1, deg),
+      toggle('clouds', 'Volumetric clouds', 'HDRP clouds on the global volume'),
+      slider('hudScale', 'HUD scale', 'Compass, tracker and vitals', 0.8, 1.3, 0.01, 0.05, function (v) { return v.toFixed(2) + '×'; }),
+      toggle('showHud', 'Show HUD', 'Same as H')
+    ],
+    controls: [
+      slider('sens', 'Mouse sensitivity', 'While holding the right mouse button', 0.5, 6, 0.1, 0.1, function (v) { return v.toFixed(1); }),
+      toggle('invertY', 'Invert Y-axis', 'Push the mouse up to look down'),
+      slider('camDist', 'Camera distance', 'Also the scroll wheel', 3, 14, 0.1, 0.5, function (v) { return v.toFixed(1) + ' m'; })
+    ],
+    audio: [
+      slider('volume', 'Master volume', 'All game audio', 0, 1, 0.01, 0.05, function (v) { return Math.round(v * 100) + '%'; }),
+      toggle('mute', 'Mute audio', 'Silence without losing the level')
+    ],
+    save: [
+      { id: 'saveNow', type: 'action', label: 'Save journey', hint: 'Quests, campfires and progress', btn: 'Save now' },
+      { id: 'reset', type: 'action', label: 'Reset journey', hint: 'Start again from Oakhaven', btn: 'Reset' },
+      { id: 'defaults', type: 'action', label: 'Restore defaults', hint: 'Every setting on every tab', btn: 'Restore' }
+    ]
+  };
+  var KEYBINDS = [['WASD', 'Move'], ['Shift', 'Sprint'], ['Right-drag', 'Look around'], ['Left-click', 'Attack'], ['Space', 'Jump'], ['C', 'Roll'],
+    ['E', 'Interact, complete quest'], ['T', 'Torch'], ['B', 'Place campfire'], ['J', 'Journal'], ['H', 'Hide HUD'], ['V', 'Fly mode'],
+    ['[ / ]', 'Time of day'], ['1–4', 'Travel to landmarks'], ['Scroll', 'Camera distance'], ['Esc', 'Pause, back']];
+  var stab = 'display', sfocus = 0, resetConfirm = false;
+
+  function choiceIndex(r) { return r.id === 'fullscreen' ? (S.fullscreen ? 0 : 1) : (S[r.id] ? 1 : 0); }
+  function setChoice(r, i) { if (r.id === 'fullscreen') S.fullscreen = i === 0; else S[r.id] = i === 1; applySettings(); renderSettings(); }
+  function pct(r, v) { return ((v - r.min) / (r.max - r.min) * 100).toFixed(2) + '%'; }
+  function snap(r, v) { v = Math.round(v / r.step) * r.step; return Math.max(r.min, Math.min(r.max, +v.toFixed(4))); }
+
+  function renderSettings() {
+    var tabs = stage.querySelectorAll('.stabs button');
+    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-selected', String(tabs[i].getAttribute('data-stab') === stab));
+    var rows = ROWS[stab], html = '';
+    sfocus = Math.max(0, Math.min(sfocus, rows.length - 1));
+    rows.forEach(function (r, i) {
+      var hint = r.id === 'reset' && resetConfirm ? 'Removes campfires, quests and levels.' : r.hint, ctl = '';
+      if (r.type === 'slider') {
+        var v = S[r.id];
+        ctl = '<input class="sl" type="range" data-id="' + r.id + '" min="' + r.min + '" max="' + r.max + '" step="' + r.step + '" value="' + v + '" aria-label="' + esc(r.label) + '" style="--p:' + pct(r, v) + '">' +
+          '<span class="val" id="val-' + r.id + '">' + r.fmt(v) + '</span>';
+      } else if (r.type === 'choice') {
+        var cur = choiceIndex(r);
+        ctl = '<span class="seg" role="group" aria-label="' + esc(r.label) + '">' + r.opts.map(function (o, j) {
+          return '<button type="button" data-row="' + i + '" data-opt="' + j + '" aria-pressed="' + (cur === j) + '">' + o + '</button>';
+        }).join('') + '</span>';
+      } else if (r.id === 'reset' && resetConfirm) {
+        ctl = '<span class="ask">Start fresh?</span><span class="choices"><button type="button" data-rc="0" data-on="' + (confirmChoice === 0) + '">Confirm</button>' +
+          '<button type="button" data-rc="1" data-on="' + (confirmChoice === 1) + '">Cancel</button></span>';
+      } else {
+        ctl = '<button type="button" class="sbtn" data-action="' + r.id + '">' + r.btn + '</button>';
+      }
+      html += '<div class="srow" data-row="' + i + '" data-focus="' + (i === sfocus) + '"><div class="sl-l"><div class="lab">' + esc(r.label) + '</div><div class="hint">' + esc(hint) + '</div></div><div class="ctl">' + ctl + '</div></div>';
+    });
+    if (stab === 'controls') {
+      html += '<p class="kbl">Keybinds</p><div class="kb">' + KEYBINDS.map(function (k) { return '<div><kbd><span>' + esc(k[0]) + '</span></kbd>' + esc(k[1]) + '</div>'; }).join('') + '</div>';
+    }
+    if (stab === 'save') html += '<p class="snote">Settings save automatically to worldmill_settings.json. Your journey saves on every quest and campfire.</p>';
+    $('sbody').innerHTML = html;
+    $('sback').textContent = settingsFrom === 'title' ? 'Back to title' : 'Back';
+  }
+  function focusRow(i) {
+    sfocus = i;
+    var rows = $('sbody').querySelectorAll('.srow');
+    for (var j = 0; j < rows.length; j++) rows[j].setAttribute('data-focus', String(j === i));
+  }
+  function setSlider(r, v, rerenderVal) {
+    S[r.id] = snap(r, v);
+    applySettings();
+    var input = $('sbody').querySelector('input[data-id="' + r.id + '"]');
+    if (input) { if (rerenderVal) input.value = S[r.id]; input.style.setProperty('--p', pct(r, S[r.id])); }
+    var val = $('val-' + r.id); if (val) val.textContent = r.fmt(S[r.id]);
+  }
+  /// Live-apply to the preview stage: FOV → world zoom, sun → sky brightness, clouds, HUD scale, Show HUD.
+  function applySettings() {
+    stage.style.setProperty('--zoom', (62 / S.fov).toFixed(3));
+    stage.style.setProperty('--sunb', (0.72 + 0.62 * (S.sun - 4) / 76).toFixed(3));
+    stage.style.setProperty('--hs', S.hudScale.toFixed(2));
+    stage.classList.toggle('no-clouds', !S.clouds);
+    stage.classList.toggle('hud-off', !S.showHud);
+  }
+  function settingAction(id) {
+    if (id === 'saveNow') toast('Journey saved');
+    else if (id === 'reset') {
+      if (!resetConfirm) { resetConfirm = true; confirmChoice = 1; renderSettings(); }
+      else doReset();
+    } else if (id === 'defaults') { S = Object.assign({}, DEFAULTS); applySettings(); renderSettings(); toast('Settings restored to defaults'); }
+  }
+  function doReset() { resetConfirm = false; renderSettings(); toast('A new journey begins'); }
+  function openSettings() {
+    resetConfirm = false; sfocus = 0;
+    setState('settings');   // setState records whether it came from Title or Pause
+  }
+  function selectTab(t) { if (t !== stab) { stab = t; sfocus = 0; resetConfirm = false; renderSettings(); } }
 
   // ---- States ----
   var CAPTIONS = {
@@ -531,15 +843,23 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
     damage: 'A hit drops health instantly; the pale trail holds 450 ms, then drains. A dodge drains stamina the same way.',
     toast: 'Store toast, verbatim. Fades in 250 ms, holds 3.2 s, fades out over 800 ms.',
     combat: 'Design only, not in WorldMillMinimalHud yet: gold on the active hotbar slot and the boss phase notch. No bosses exist in the store, so the name is a placeholder.',
-    journal: 'J opens the journal and frees the cursor. Track switches the active quest; Esc or J closes.',
-    hidden: 'H hides everything for screenshots. Press H again to bring it back.'
+    journal: 'J opens the journal and frees the cursor. Track switches the active quest; Esc or J closes (back to Pause when opened from it).',
+    hidden: 'H hides everything for screenshots. Press H again to bring it back.',
+    title: 'Shown on Play. The live world stays visible behind a left gradient scrim while the camera orbits Oakhaven. Continue appears only with save progress; New journey asks inline first.',
+    pause: 'Esc during play. Time.timeScale is 0, the HUD fades to a trace and the cursor is freed. Esc again resumes.',
+    settings: 'Shared by Title and Pause. Sliders, toggles and tabs are live; gold marks the active tab, the chosen option and slider fills. Esc goes back one level.'
   };
   var timers = [];
   function clearTimers() { timers.forEach(clearTimeout); timers = []; }
   function setState(s) {
     clearTimers();
+    var prev = state;
+    if (s === 'journal') journalFromPause = prev === 'pause' || (prev === 'journal' && journalFromPause);
+    if (s === 'settings' && prev !== 'settings') settingsFrom = prev === 'title' ? 'title' : 'pause';
+    if (s === 'title' || s === 'pause') { if (prev !== s) menuFocus = 0; confirmNew = false; }
     state = s;
     stage.setAttribute('data-state', s);
+    stage.classList.toggle('from-title', s === 'settings' && settingsFrom === 'title');
     var btns = document.querySelectorAll('.toolbar button');
     for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-s') === s));
     pos = s === 'near' ? POS_NEAR : POS_BRIDGE;
@@ -553,6 +873,8 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
     if (s === 'combat') { setBar($('hpbar'), 0.78, 0.78); setBar($('stbar'), 0.46, 0.46); }
     if (s === 'toast') toast('Quest completed: The Sunken Crossing (+150 XP · Level 2!)');
     if (s === 'journal') { var a = active(); if (a) selQuest = a.id; drawJournal(); }
+    if (s === 'settings') renderSettings();
+    renderMenus();
     $('caption').textContent = CAPTIONS[s];
     drawHud();
   }
@@ -572,12 +894,84 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
     if ((t = e.target.closest('[data-lore]'))) { selLore = +t.getAttribute('data-lore'); drawJournal(); return; }
     if ((t = e.target.closest('[data-item]'))) { selItem = t.getAttribute('data-item'); drawJournal(); }
   });
+  // Menus: clicks + hover focus (hover never rebuilds, so the pointer target stays stable)
+  ['titleList', 'pauseList'].forEach(function (id) {
+    var el = $(id);
+    el.addEventListener('click', function (e) {
+      var c = e.target.closest('[data-choice]');
+      if (c) { if (c.getAttribute('data-choice') === '0') startNewJourney(); else { confirmNew = false; renderMenus(); } return; }
+      var b = e.target.closest('.mi'); if (b) { focusMenu(+b.getAttribute('data-i')); activate(b.getAttribute('data-act')); }
+    });
+    el.addEventListener('mouseover', function (e) {
+      var b = e.target.closest('.mi'); if (b && +b.getAttribute('data-i') !== menuFocus) { if (confirmNew) { confirmNew = false; menuFocus = +b.getAttribute('data-i'); renderMenus(); } else focusMenu(+b.getAttribute('data-i')); }
+      var c = e.target.closest('[data-choice]');
+      if (c && +c.getAttribute('data-choice') !== confirmChoice) { confirmChoice = +c.getAttribute('data-choice'); var cs = el.querySelectorAll('[data-choice]'); for (var i = 0; i < cs.length; i++) cs[i].setAttribute('data-on', String(+cs[i].getAttribute('data-choice') === confirmChoice)); }
+    });
+  });
+  $('settings').addEventListener('click', function (e) {
+    var t;
+    if ((t = e.target.closest('[data-stab]'))) { selectTab(t.getAttribute('data-stab')); return; }
+    if ((t = e.target.closest('[data-opt]'))) { var r = ROWS[stab][+t.getAttribute('data-row')]; focusRow(+t.getAttribute('data-row')); setChoice(r, +t.getAttribute('data-opt')); return; }
+    if ((t = e.target.closest('[data-action]'))) { settingAction(t.getAttribute('data-action')); return; }
+    if ((t = e.target.closest('[data-rc]'))) { if (t.getAttribute('data-rc') === '0') doReset(); else { resetConfirm = false; renderSettings(); } return; }
+    if (e.target.closest('#sback')) setState(settingsFrom);
+  });
+  $('settings').addEventListener('input', function (e) {
+    var id = e.target.getAttribute('data-id'); if (!id) return;
+    var r = ROWS[stab].filter(function (x) { return x.id === id; })[0]; if (r) setSlider(r, parseFloat(e.target.value), false);
+  });
+  $('sbody').addEventListener('mouseover', function (e) {
+    var row = e.target.closest('.srow'); if (row && +row.getAttribute('data-row') !== sfocus) focusRow(+row.getAttribute('data-row'));
+  });
+
   document.addEventListener('keydown', function (e) {
-    if (e.altKey || e.ctrlKey || e.metaKey || /input|textarea|select/i.test(e.target.tagName)) return;
-    var k = e.key.toLowerCase();
-    if (k === 'j' && state !== 'hidden') setState(state === 'journal' ? 'explore' : 'journal');
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var k = e.key.toLowerCase(), inField = /input|textarea|select/i.test(e.target.tagName);
+    if (k === 'escape') {
+      if (state === 'settings') { if (resetConfirm) { resetConfirm = false; renderSettings(); } else setState(settingsFrom); }
+      else if (state === 'journal') setState(journalFromPause ? 'pause' : 'explore');
+      else if (state === 'title') { if (confirmNew) { confirmNew = false; renderMenus(); } }
+      else if (state === 'pause') setState('explore');
+      else setState('pause');
+      e.preventDefault();
+      return;
+    }
+    if (inField) return;
+    var up = k === 'arrowup' || k === 'w', down = k === 'arrowdown' || k === 's', left = k === 'arrowleft' || k === 'a', right = k === 'arrowright' || k === 'd';
+    var submit = k === 'enter' || (k === ' ' && e.target === document.body);
+    if (state === 'title' || state === 'pause') {
+      var items = menuItems(), onNew = items[menuFocus] && items[menuFocus][0] === 'new' && confirmNew;
+      if (onNew && (left || right)) { confirmChoice = left ? 0 : 1; renderMenus(); e.preventDefault(); return; }
+      if (up || down) { menuFocus = (menuFocus + (down ? 1 : -1) + items.length) % items.length; confirmNew = false; renderMenus(); e.preventDefault(); return; }
+      if (submit && e.target.closest && !e.target.closest('button')) {
+        if (onNew) { if (confirmChoice === 0) startNewJourney(); else { confirmNew = false; renderMenus(); } }
+        else activate(items[menuFocus][0]);
+        e.preventDefault(); return;
+      }
+      if (k === 'j' && state === 'pause') setState('journal');
+      return;
+    }
+    if (state === 'settings') {
+      var rows = ROWS[stab], r = rows[sfocus];
+      if (up || down) { focusRow((sfocus + (down ? 1 : -1) + rows.length) % rows.length); if (resetConfirm) { resetConfirm = false; renderSettings(); } e.preventDefault(); return; }
+      if (r.id === 'reset' && resetConfirm) {
+        if (left || right) { confirmChoice = left ? 0 : 1; renderSettings(); }
+        else if (submit) { if (confirmChoice === 0) doReset(); else { resetConfirm = false; renderSettings(); } }
+        e.preventDefault(); return;
+      }
+      if (left || right) {
+        if (r.type === 'slider') setSlider(r, S[r.id] + (right ? 1 : -1) * r.kstep * (e.shiftKey ? 5 : 1), true);
+        else if (r.type === 'choice') setChoice(r, left ? 0 : 1);
+        e.preventDefault(); return;
+      }
+      if (submit && !(e.target.closest && e.target.closest('button'))) {
+        if (r.type === 'action') settingAction(r.id); else if (r.type === 'choice') setChoice(r, 1 - choiceIndex(r));
+        e.preventDefault();
+      }
+      return;
+    }
+    if (k === 'j' && state !== 'hidden') setState(state === 'journal' ? (journalFromPause ? 'pause' : 'explore') : 'journal');
     else if (k === 'h') setState(state === 'hidden' ? 'explore' : 'hidden');
-    else if (k === 'escape' && state === 'journal') setState('explore');
   });
 
   // Gentle look-around so the compass reads as live; static under reduced motion.
@@ -589,7 +983,8 @@ code { font: 12px/1.5 var(--mono); color: var(--ink-muted); }
     }
     requestAnimationFrame(frame);
   }
-  setState('explore');
+  applySettings();
+  setState('title');
   requestAnimationFrame(frame);
 })();
 </script>
