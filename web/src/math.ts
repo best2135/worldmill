@@ -13,6 +13,19 @@ export function perspectiveZO(fovYRad: number, aspect: number, near: number, far
   return m;
 }
 
+/** Standard OpenGL / WebGL2 perspective matrix with NDC z in [-1, 1]. */
+export function perspectiveNO(fovYRad: number, aspect: number, near: number, far: number): Mat4 {
+  const f = 1.0 / Math.tan(fovYRad * 0.5);
+  const nf = 1.0 / (near - far);
+  const m = new Float32Array(16);
+  m[0] = f / aspect;
+  m[5] = f;
+  m[10] = (far + near) * nf;
+  m[11] = -1;
+  m[14] = 2 * far * near * nf;
+  return m;
+}
+
 export function lookAt(eye: Vec3, target: Vec3, up: Vec3): Mat4 {
   let zx = eye[0] - target[0];
   let zy = eye[1] - target[1];

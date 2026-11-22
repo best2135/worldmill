@@ -3,6 +3,9 @@ import type { Vec3 } from "./math";
 import { SpatialMinimap } from "./minimap";
 import { decodeChunkPacket, type ChunkCoord } from "./protocol";
 import { WorldRenderer } from "./renderer";
+import { WebGL2WorldRenderer } from "./renderer_webgl2";
+
+type AnyRenderer = WorldRenderer | WebGL2WorldRenderer;
 
 interface ServerStats {
   adapter: string;
@@ -148,13 +151,20 @@ function updateCamera(dt: number) {
 }
 
 async function boot() {
-  const renderer = new WorldRenderer(canvas);
+  let renderer: AnyRenderer = new WorldRenderer(canvas);
   try {
     await renderer.init();
-  } catch (err) {
-    errOverlay.textContent = err instanceof Error ? err.message : String(err);
-    errOverlay.classList.remove("hidden");
-    return;
+  } catch (webgpuErr) {
+    console.warn("WebGPU unavailable, falling back to WebGL2:", webgpuErr);
+    renderer = new WebGL2WorldRenderer(canvas);
+    try {
+      await renderer.init();
+    } catch (glErr) {
+      errOverlay.textContent =
+        glErr instanceof Error ? glErr.message : String(glErr);
+      errOverlay.classList.remove("hidden");
+      return;
+    }
   }
 
   const minimap = new SpatialMinimap(minimapCanvas);
@@ -207,7 +217,7 @@ async function boot() {
   }
 
   function updateStatsHud(s: ServerStats) {
-    gpuAdapterEl.textContent = `${s.adapter} (${s.backend}, ${s.worker_slots} workers)`;
+    gpuAdapterEl.textContent = `Server: ${s.adapter} (${s.backend}) · Client: ${renderer.backendName}`;
     mBake.textContent = `${s.avg_gpu_ms.toFixed(2)} ms`;
     mHits.textContent = s.cache_hits.toLocaleString();
   }

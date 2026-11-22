@@ -237,7 +237,7 @@ fn eval_sky_linear(dir: vec3<f32>, sun: vec3<f32>, sunset_t: f32) -> vec3<f32> {
 }
 
 @fragment
-fn fs_water(in: WaterOut, @builtin(front_facing) front_facing: bool) -> @location(0) vec4<f32> {
+fn fs_water(in: WaterOut) -> @location(0) vec4<f32> {
     let t = frame.params.x;
     let p = in.world_pos.xz;
     let view_vec = frame.camera_pos.xyz - in.world_pos;
@@ -307,7 +307,7 @@ fn fs_water(in: WaterOut, @builtin(front_facing) front_facing: bool) -> @locatio
         dhdz += d.y * deriv;
     }
 
-    let n_sign = select(-1.0, 1.0, front_facing && frame.camera_pos.y >= WATER_LEVEL);
+    let n_sign = select(-1.0, 1.0, frame.camera_pos.y >= WATER_LEVEL);
     let n = normalize(vec3<f32>(-dhdx, n_sign, -dhdz));
 
     let sun = normalize(frame.sun_dir.xyz);
@@ -368,6 +368,7 @@ export class WorldRenderer {
   private totalTriangles = 0;
   public lodTint = false;
   public sunDir: Vec3 = [0.55, 0.72, 0.42];
+  public readonly backendName = "WebGPU";
 
   constructor(private canvas: HTMLCanvasElement) {}
 
